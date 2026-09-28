@@ -51,7 +51,13 @@ class SessionManagerImpl(context: Context) : SessionManager {
     }
 
     override fun getServerUrl(): String? {
-        return prefs.getString(KEY_SERVER_URL, null)
+        val url = prefs.getString(KEY_SERVER_URL, null)
+        if (url != null && url.contains("project-sentinel-rwt4")) {
+            val updatedUrl = "wss://projectsentinel-2.onrender.com/ws"
+            saveServerUrl(updatedUrl)
+            return updatedUrl
+        }
+        return url
     }
 
     override fun hasSession(): Boolean {

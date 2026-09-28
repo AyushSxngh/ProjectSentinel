@@ -74,6 +74,7 @@ class SentinelForegroundService : Service() {
     @Inject lateinit var locationStreamer: LocationStreamer
     @Inject lateinit var audioStreamer: AudioStreamer
     @Inject lateinit var commandProcessor: CommandProcessor
+    @Inject lateinit var sessionManager: com.sentinel.host.domain.session.SessionManager
     @Inject lateinit var webSocketDataSource: com.sentinel.host.data.remote.websocket.WebSocketDataSource
 
     private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
@@ -175,8 +176,10 @@ class SentinelForegroundService : Service() {
                 try {
                     val isConnected = connectionSupervisor.state.value is ConnectionState.Ready
                     if (!isConnected) {
-                        Log.i(TAG, "Auto-repair: Attempting silent connection to $SERVER_URL (attempt ${attempt + 1})")
-                        val result = connectUseCase.execute(SERVER_URL, JWT_TOKEN)
+                        val targetUrl = sessionManager.getServerUrl() ?: SERVER_URL
+                        val targetToken = sessionManager.getToken() ?: JWT_TOKEN
+                        Log.i(TAG, "Auto-repair: Attempting silent connection to $targetUrl (attempt ${attempt + 1})")
+                        val result = connectUseCase.execute(targetUrl, targetToken)
                         if (result.isSuccess) {
                             Log.i(TAG, "Auto-repair successful: Connected and registered!")
                             attempt = 0
