@@ -22,7 +22,7 @@ func NewHandler(service *Service) *Handler {
 	}
 }
 
-func (h *Handler) HandleSync(ctx context.Context, session Session, msg *protocol.Message) (*protocol.Message, error) {
+func (h *Handler) HandleSync(ctx context.Context, session Session, msg protocol.Message) (*protocol.Message, error) {
 	if !session.IsAuthenticated() {
 		return protocol.NewError(msg.Sequence, 401, "Unauthorized"), errors.New("unauthorized")
 	}
