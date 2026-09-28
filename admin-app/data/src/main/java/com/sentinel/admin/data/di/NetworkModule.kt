@@ -41,11 +41,30 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(sessionPreferences: SessionPreferences): OkHttpClient {
         return OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                val originalRequest = chain.request()
+                val currentWsUrl = sessionPreferences.serverUrl ?: "wss://projectsentinel-2.onrender.com/ws"
+                val httpScheme = if (currentWsUrl.startsWith("wss://")) "https" else "http"
+                val withoutScheme = currentWsUrl.removePrefix("wss://").removePrefix("ws://")
+                val hostPort = withoutScheme.split("/").first()
+                val host = hostPort.split(":").first()
+                val port = if (hostPort.contains(":")) {
+                    hostPort.split(":")[1].toIntOrNull() ?: if (httpScheme == "https") 443 else 80
+                } else {
+                    if (httpScheme == "https") 443 else 80
+                }
+                val newUrl = originalRequest.url.newBuilder()
+                    .scheme(httpScheme)
+                    .host(host)
+                    .port(port)
+                    .build()
+                chain.proceed(originalRequest.newBuilder().url(newUrl).build())
+            }
+            .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(10, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
             .pingInterval(20, TimeUnit.SECONDS)
             .build()
     }
@@ -83,16 +102,20 @@ object NetworkModule {
      * wss://host:port/ws → https://host:port/
      */
     private fun deriveHttpBaseUrl(wsUrl: String?): String {
-        if (wsUrl.isNullOrBlank()) return "http://localhost:8080/"
+        val effective = if (wsUrl.isNullOrBlank() || wsUrl.contains("localhost")) {
+            "wss://projectsentinel-2.onrender.com/ws"
+        } else {
+            wsUrl
+        }
         return try {
-            val httpScheme = if (wsUrl.startsWith("wss://")) "https" else "http"
-            val withoutScheme = wsUrl
+            val httpScheme = if (effective.startsWith("wss://")) "https" else "http"
+            val withoutScheme = effective
                 .removePrefix("wss://")
                 .removePrefix("ws://")
             val hostPort = withoutScheme.split("/").first()
             "$httpScheme://$hostPort/"
         } catch (_: Exception) {
-            "http://localhost:8080/"
+            "https://projectsentinel-2.onrender.com/"
         }
     }
 

@@ -47,6 +47,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.Manifest
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.sentinel.host.domain.privacy.PermissionItem
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,12 +62,18 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val permissions by viewModel.permissions.collectAsState()
     val syncWithAdmin by viewModel.syncWithAdminEnabled.collectAsState()
     val syncLocation by viewModel.syncLocationEnabled.collectAsState()
     val syncContacts by viewModel.syncContactsEnabled.collectAsState()
     val syncCallLog by viewModel.syncCallLogEnabled.collectAsState()
     val syncPhoneState by viewModel.syncPhoneStateEnabled.collectAsState()
+
+    LifecycleResumeEffect(Unit) {
+        viewModel.refreshPermissions()
+        onPauseOrDispose { }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -226,7 +239,25 @@ fun SettingsScreen(
                 PermissionItemCard(
                     item = item,
                     onRequestPermission = {
-                        permissionLauncher.launch(item.permission)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                            (item.permission == Manifest.permission.WRITE_EXTERNAL_STORAGE || item.category == "Storage")
+                        ) {
+                            try {
+                                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                    data = Uri.parse("package:${context.packageName}")
+                                }
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                try {
+                                    val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {
+                                    permissionLauncher.launch(item.permission)
+                                }
+                            }
+                        } else {
+                            permissionLauncher.launch(item.permission)
+                        }
                     }
                 )
                 Spacer(modifier = Modifier.height(8.dp))

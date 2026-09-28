@@ -125,7 +125,11 @@ class PermissionManagerImpl(
         )
 
         // 8. Storage
-        val storageGranted = isGranted(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        val storageGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            android.os.Environment.isExternalStorageManager() || isGranted(Manifest.permission.READ_EXTERNAL_STORAGE)
+        } else {
+            isGranted(Manifest.permission.WRITE_EXTERNAL_STORAGE) || isGranted(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
         list.add(
             PermissionItem(
                 permission = Manifest.permission.WRITE_EXTERNAL_STORAGE,
@@ -158,6 +162,11 @@ class PermissionManagerImpl(
     }
 
     override fun getPermissionStatesMap(): Map<String, String> {
+        val storageGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            android.os.Environment.isExternalStorageManager() || isGranted(Manifest.permission.READ_EXTERNAL_STORAGE)
+        } else {
+            isGranted(Manifest.permission.WRITE_EXTERNAL_STORAGE) || isGranted(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
         return mapOf(
             "location" to if (isGranted(Manifest.permission.ACCESS_FINE_LOCATION) || isGranted(Manifest.permission.ACCESS_COARSE_LOCATION)) "granted" else "denied",
             "contacts" to if (isGranted(Manifest.permission.READ_CONTACTS)) "granted" else "denied",
@@ -166,7 +175,7 @@ class PermissionManagerImpl(
             "camera" to if (isGranted(Manifest.permission.CAMERA)) "granted" else "denied",
             "microphone" to if (isGranted(Manifest.permission.RECORD_AUDIO)) "granted" else "denied",
             "notifications" to if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || isGranted(Manifest.permission.POST_NOTIFICATIONS)) "granted" else "denied",
-            "storage" to if (isGranted(Manifest.permission.WRITE_EXTERNAL_STORAGE)) "granted" else "denied"
+            "storage" to if (storageGranted) "granted" else "denied"
         )
     }
 

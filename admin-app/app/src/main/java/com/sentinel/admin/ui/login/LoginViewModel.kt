@@ -126,23 +126,24 @@ class LoginViewModel @Inject constructor(
     }
 
     private fun loadSavedSession() {
-        val savedUrl = sessionPreferences.serverUrl
-        val savedToken = authRepository.getToken()
+        val defaultUrl = "wss://projectsentinel-2.onrender.com/ws"
+        val defaultToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VfaWQiOiJBRE1JTi0wMDEiLCJpc3MiOiJwcm9qZWN0LXNlbnRpbmVsIiwic3ViIjoiQURNSU4tMDAxIiwiZXhwIjoxODIyMTMwNDQ3LCJpYXQiOjE3OTA1OTQ0NDd9.ztBcK6sJx4-w1je0xJ9jiR_1TwDVuJaXuyxl_KWfH-w"
+
+        val savedUrl = sessionPreferences.serverUrl?.takeIf { it.isNotBlank() && !it.contains("example.com") } ?: defaultUrl
+        val savedToken = authRepository.getToken()?.takeIf { it.isNotBlank() } ?: defaultToken
         val rememberMe = sessionPreferences.rememberMe
 
-        if (savedUrl != null && savedToken != null) {
-            _uiState.update {
-                it.copy(
-                    serverUrl = savedUrl,
-                    token = savedToken,
-                    rememberMe = rememberMe
-                )
-            }
+        _uiState.update {
+            it.copy(
+                serverUrl = savedUrl,
+                token = savedToken,
+                rememberMe = rememberMe
+            )
+        }
 
-            // Auto-connect if Remember Me was enabled
-            if (rememberMe) {
-                connect()
-            }
+        // Auto-connect if Remember Me was enabled
+        if (rememberMe && sessionPreferences.serverUrl != null && authRepository.getToken() != null) {
+            connect()
         }
     }
 
