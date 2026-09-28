@@ -140,7 +140,7 @@ fun LoginScreen(
                         value = uiState.serverUrl,
                         onValueChange = onServerUrlChanged,
                         label = { Text("Server URL") },
-                        placeholder = { Text("wss://sentinel.example.com/ws") },
+                        placeholder = { Text("wss://projectsentinel-2.onrender.com/ws") },
                         isError = uiState.serverUrlError != null,
                         supportingText = uiState.serverUrlError?.let { { Text(it) } },
                         enabled = uiState.inputsEnabled,

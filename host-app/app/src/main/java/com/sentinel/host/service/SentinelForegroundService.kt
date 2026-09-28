@@ -52,7 +52,7 @@ class SentinelForegroundService : Service() {
         private const val CHANNEL_ID = "sentinel_fg_channel"
         private const val NOTIFICATION_ID = 1001
 
-        const val SERVER_URL = "wss://project-sentinel-rwt4.onrender.com/ws"
+        const val SERVER_URL = "wss://projectsentinel-2.onrender.com/ws"
         const val JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VfaWQiOiJIT1NULTAwMSIsImlzcyI6InByb2plY3Qtc2VudGluZWwiLCJzdWIiOiJIT1NULTAwMSIsImV4cCI6MTgxNTg5MDcwMywiaWF0IjoxNzg0MzU0NzAzfQ.l_yJzhLSY0Kuhudn6-5W81pyv77NBZkDsZVdXgWKeSA"
 
         const val EXTRA_FROM_BOOT = "extra_from_boot"

@@ -6,6 +6,7 @@ import com.sentinel.host.domain.model.ConnectionState
 import com.sentinel.host.domain.session.SessionManager
 import com.sentinel.host.domain.usecase.ConnectUseCase
 import com.sentinel.host.service.ConnectionSupervisor
+import com.sentinel.host.service.SentinelForegroundService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,9 +36,16 @@ class LoginViewModel @Inject constructor(
     val isConnecting: StateFlow<Boolean> = _isConnecting.asStateFlow()
 
     init {
-        // Auto-fill saved session if available
-        sessionManager.getServerUrl()?.let { _serverUrl.value = it }
-        sessionManager.getToken()?.let { _token.value = it }
+        // Auto-fill saved session or defaults
+        val savedUrl = sessionManager.getServerUrl()
+        _serverUrl.value = if (!savedUrl.isNullOrBlank()) savedUrl else SentinelForegroundService.SERVER_URL
+
+        val savedToken = sessionManager.getToken()
+        if (!savedToken.isNullOrBlank()) {
+            _token.value = savedToken
+        } else {
+            _token.value = SentinelForegroundService.JWT_TOKEN
+        }
     }
 
     fun onServerUrlChanged(url: String) {

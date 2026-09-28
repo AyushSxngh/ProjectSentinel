@@ -65,7 +65,7 @@ fun LoginScreen(
             value = serverUrl,
             onValueChange = viewModel::onServerUrlChanged,
             label = { Text("Server URL") },
-            placeholder = { Text("ws://192.168.1.100:8080/ws") },
+            placeholder = { Text("wss://projectsentinel-2.onrender.com/ws") },
             singleLine = true,
             enabled = !isConnecting,
             modifier = Modifier.fillMaxWidth()
