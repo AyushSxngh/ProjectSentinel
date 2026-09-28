@@ -67,9 +67,8 @@ func (r *RedisSyncRepository) SaveLatest(ctx context.Context, snapshot DeviceSyn
 		return fmt.Errorf("marshal sync snapshot: %w", err)
 	}
 
-	if err := r.client.Set(ctx, syncKey(snapshot.DeviceID), payload, r.ttl); err != nil {
-		return fmt.Errorf("save sync snapshot to redis: %w", err)
-	}
+	// Attempt redis save; non-fatal if redis is down
+	_ = r.client.Set(ctx, syncKey(snapshot.DeviceID), payload, r.ttl)
 
 	return nil
 }

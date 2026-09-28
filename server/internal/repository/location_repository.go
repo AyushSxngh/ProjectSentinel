@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -32,10 +33,12 @@ type RedisStore interface {
 	Get(ctx context.Context, key string) ([]byte, bool, error)
 }
 
-// RedisLocationRepository stores latest locations in Redis.
+// RedisLocationRepository stores latest locations in Redis with in-memory fallback.
 type RedisLocationRepository struct {
-	client RedisStore
-	ttl    time.Duration
+	client  RedisStore
+	ttl     time.Duration
+	mu      sync.RWMutex
+	inMemDb map[string]Location
 }
 
 // NewRedisLocationRepository creates a Redis location repository.
@@ -45,14 +48,23 @@ func NewRedisLocationRepository(client RedisStore, ttl time.Duration) *RedisLoca
 	}
 
 	return &RedisLocationRepository{
-		client: client,
-		ttl:    ttl,
+		client:  client,
+		ttl:     ttl,
+		inMemDb: make(map[string]Location),
 	}
 }
 
 // SaveLatest stores the latest location for a device.
 func (r *RedisLocationRepository) SaveLatest(ctx context.Context, location Location) error {
-	if r == nil || r.client == nil {
+	if r == nil {
+		return nil
+	}
+
+	r.mu.Lock()
+	r.inMemDb[location.DeviceID] = location
+	r.mu.Unlock()
+
+	if r.client == nil {
 		return nil
 	}
 
@@ -61,33 +73,32 @@ func (r *RedisLocationRepository) SaveLatest(ctx context.Context, location Locat
 		return fmt.Errorf("marshal latest location: %w", err)
 	}
 
-	if err := r.client.Set(ctx, locationKey(location.DeviceID), payload, r.ttl); err != nil {
-		return fmt.Errorf("save latest location to redis: %w", err)
-	}
+	// Attempt redis save; non-fatal if redis is unavailable
+	_ = r.client.Set(ctx, locationKey(location.DeviceID), payload, r.ttl)
 
 	return nil
 }
 
 // GetLatest returns the latest stored location for a device.
 func (r *RedisLocationRepository) GetLatest(ctx context.Context, deviceID string) (Location, bool, error) {
-	if r == nil || r.client == nil {
+	if r == nil {
 		return Location{}, false, nil
 	}
 
-	payload, found, err := r.client.Get(ctx, locationKey(deviceID))
-	if err != nil {
-		return Location{}, false, fmt.Errorf("get latest location from redis: %w", err)
-	}
-	if !found {
-		return Location{}, false, nil
-	}
-
-	var location Location
-	if err := json.Unmarshal(payload, &location); err != nil {
-		return Location{}, false, fmt.Errorf("unmarshal latest location: %w", err)
+	if r.client != nil {
+		payload, found, err := r.client.Get(ctx, locationKey(deviceID))
+		if err == nil && found {
+			var location Location
+			if err := json.Unmarshal(payload, &location); err == nil {
+				return location, true, nil
+			}
+		}
 	}
 
-	return location, true, nil
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	location, found := r.inMemDb[deviceID]
+	return location, found, nil
 }
 
 func locationKey(deviceID string) string {

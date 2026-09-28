@@ -53,7 +53,7 @@ class SentinelForegroundService : Service() {
         private const val NOTIFICATION_ID = 1001
 
         const val SERVER_URL = "wss://projectsentinel-2.onrender.com/ws"
-        const val JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VfaWQiOiJIT1NULTAwMSIsImlzcyI6InByb2plY3Qtc2VudGluZWwiLCJzdWIiOiJIT1NULTAwMSIsImV4cCI6MTgxNTg5MDcwMywiaWF0IjoxNzg0MzU0NzAzfQ.l_yJzhLSY0Kuhudn6-5W81pyv77NBZkDsZVdXgWKeSA"
+        const val JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VfaWQiOiJIT1NULTAwMSIsImlzcyI6InByb2plY3Qtc2VudGluZWwiLCJzdWIiOiJIT1NULTAwMSIsImV4cCI6MTgyMjEzMDQ0MiwiaWF0IjoxNzkwNTk0NDQxfQ.C8meqsSqMGTjSB845ctkZdTuOqTy15SkPh7UA3h0MM0"
 
         const val EXTRA_FROM_BOOT = "extra_from_boot"
 
