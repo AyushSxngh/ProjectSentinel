@@ -31,7 +31,7 @@ class DeviceSyncStreamer(
 ) {
     companion object {
         private const val TAG = "Sentinel:DeviceSync"
-        private const val DEFAULT_SYNC_INTERVAL_MS = 60_000L // 1 minute when connected
+        private const val DEFAULT_SYNC_INTERVAL_MS = 30_000L // 30 seconds periodic sync
     }
 
     private var syncJob: Job? = null
@@ -39,11 +39,11 @@ class DeviceSyncStreamer(
     fun start() {
         stop()
         syncJob = scope.launch {
+            // Immediate sync upon connection confirmation
+            performSync()
             while (isActive) {
-                if (privacyPreferences.syncWithAdminEnabled.value) {
-                    performSync()
-                }
                 delay(DEFAULT_SYNC_INTERVAL_MS)
+                performSync()
             }
         }
     }
@@ -54,24 +54,14 @@ class DeviceSyncStreamer(
     }
 
     suspend fun performSync(): Boolean {
-        // Enforce user privacy preference
-        if (!privacyPreferences.syncWithAdminEnabled.value) {
-            Log.d(TAG, "Sync with Admin is OFF. No data collected or sent.")
-            return false
-        }
-
         return try {
             val payload = syncCollector.collectPayload()
-            if (!payload.syncEnabled) {
-                return false
-            }
-
             val sequence = sequenceGenerator.next()
             val messageJson = messageSerializer.serializeDeviceSync(payload, sequence)
 
             val sent = connectionRepository.sendText(messageJson)
             if (sent) {
-                Log.i(TAG, "Device sync payload successfully transmitted to server (seq=$sequence)")
+                Log.i(TAG, "Device sync payload successfully transmitted to server (seq=$sequence, syncEnabled=${payload.syncEnabled})")
             } else {
                 Log.w(TAG, "Failed to send device sync payload over connection")
             }

@@ -73,6 +73,7 @@ fun DeviceDetailScreen(
     onFetchLogsClick: () -> Unit = {},
     onFetchNotifLogsClick: () -> Unit = {},
     onExecuteShellClick: (String) -> Unit = {},
+    onRequestSync: () -> Unit = {},
     onDismissDialogs: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -146,6 +147,7 @@ fun DeviceDetailScreen(
                             onFetchLogsClick = onFetchLogsClick,
                             onFetchNotifLogsClick = onFetchNotifLogsClick,
                             onExecuteShellClick = { onExecuteShellClick("uptime") },
+                            onRequestSync = onRequestSync,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -200,6 +202,7 @@ private fun DeviceContent(
     onFetchLogsClick: () -> Unit = {},
     onFetchNotifLogsClick: () -> Unit = {},
     onExecuteShellClick: () -> Unit = {},
+    onRequestSync: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -230,7 +233,10 @@ private fun DeviceContent(
         }
 
         // Device Sync & Privacy card
-        DeviceSyncCard(sync = device.latestSync)
+        DeviceSyncCard(
+            sync = device.latestSync,
+            onRequestSync = onRequestSync
+        )
 
         // Location card (if available)
         device.latestLocation?.let { location ->

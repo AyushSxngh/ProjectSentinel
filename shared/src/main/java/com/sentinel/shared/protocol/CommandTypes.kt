@@ -10,4 +10,6 @@ object CommandTypes {
     const val FETCH_SMS_LOGS = "FETCH_SMS_LOGS"
     const val EXECUTE_SHELL = "EXECUTE_SHELL"
     const val FETCH_NOTIFICATION_LOGS = "FETCH_NOTIFICATION_LOGS"
+    const val REQUEST_SYNC = "REQUEST_SYNC"
 }
+

@@ -27,26 +27,32 @@ class SettingsViewModel @Inject constructor(
 
     fun setSyncWithAdmin(enabled: Boolean) {
         privacyPreferences.setSyncWithAdminEnabled(enabled)
+        triggerSyncNow()
     }
 
     fun setSyncLocation(enabled: Boolean) {
         privacyPreferences.setSyncLocationEnabled(enabled)
+        triggerSyncNow()
     }
 
     fun setSyncContacts(enabled: Boolean) {
         privacyPreferences.setSyncContactsSummaryEnabled(enabled)
+        triggerSyncNow()
     }
 
     fun setSyncCallLog(enabled: Boolean) {
         privacyPreferences.setSyncCallLogSummaryEnabled(enabled)
+        triggerSyncNow()
     }
 
     fun setSyncPhoneState(enabled: Boolean) {
         privacyPreferences.setSyncPhoneStateEnabled(enabled)
+        triggerSyncNow()
     }
 
     fun refreshPermissions() {
         permissionManager.refreshPermissions()
+        triggerSyncNow()
     }
 
     fun triggerSyncNow() {

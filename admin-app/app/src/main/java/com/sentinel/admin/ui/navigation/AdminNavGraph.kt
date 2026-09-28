@@ -115,6 +115,7 @@ fun AdminNavGraph() {
                 onFetchLogsClick = viewModel::sendFetchLogsCommand,
                 onFetchNotifLogsClick = viewModel::sendFetchNotificationLogsCommand,
                 onExecuteShellClick = viewModel::sendExecuteShellCommand,
+                onRequestSync = viewModel::sendRequestSyncCommand,
                 onDismissDialogs = viewModel::dismissDialogs
             )
         }

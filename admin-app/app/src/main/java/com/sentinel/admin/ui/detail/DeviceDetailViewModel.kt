@@ -213,6 +213,11 @@ class DeviceDetailViewModel @Inject constructor(
         sendCommand("EXECUTE_SHELL", params)
     }
 
+    fun sendRequestSyncCommand() {
+        sendCommand("REQUEST_SYNC")
+        refresh()
+    }
+
     fun dismissDialogs() {
         _uiState.update {
             it.copy(
@@ -326,6 +331,13 @@ class DeviceDetailViewModel @Inject constructor(
                             _uiState.update {
                                 it.copy(showNotifLogsDialog = true, notifLogsJsonRaw = rawNotifJson)
                             }
+                        }
+
+                        "REQUEST_SYNC" -> {
+                            _uiState.update {
+                                it.copy(commandStatusMessage = "Telemetry sync requested and acknowledged by Host device.")
+                            }
+                            refresh()
                         }
                     }
                 } catch (e: Exception) {

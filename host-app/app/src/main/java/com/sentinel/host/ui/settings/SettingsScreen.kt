@@ -239,24 +239,51 @@ fun SettingsScreen(
                 PermissionItemCard(
                     item = item,
                     onRequestPermission = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-                            (item.permission == Manifest.permission.WRITE_EXTERNAL_STORAGE || item.category == "Storage")
-                        ) {
-                            try {
-                                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                                    data = Uri.parse("package:${context.packageName}")
-                                }
-                                context.startActivity(intent)
-                            } catch (_: Exception) {
+                        when {
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                            (item.permission == Manifest.permission.WRITE_EXTERNAL_STORAGE || item.category == "Storage") -> {
                                 try {
-                                    val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                        data = Uri.parse("package:${context.packageName}")
+                                    }
                                     context.startActivity(intent)
                                 } catch (_: Exception) {
-                                    permissionLauncher.launch(item.permission)
+                                    try {
+                                        val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                                        context.startActivity(intent)
+                                    } catch (_: Exception) {
+                                        permissionLauncher.launch(item.permission)
+                                    }
                                 }
                             }
-                        } else {
-                            permissionLauncher.launch(item.permission)
+                            item.permission == Manifest.permission.BIND_NOTIFICATION_LISTENER_SERVICE -> {
+                                try {
+                                    val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {}
+                            }
+                            item.permission == Manifest.permission.BIND_ACCESSIBILITY_SERVICE -> {
+                                try {
+                                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {}
+                            }
+                            item.permission == Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS -> {
+                                try {
+                                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                        data = Uri.parse("package:${context.packageName}")
+                                    }
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {
+                                    try {
+                                        val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                        context.startActivity(intent)
+                                    } catch (_: Exception) {}
+                                }
+                            }
+                            else -> {
+                                permissionLauncher.launch(item.permission)
+                            }
                         }
                     }
                 )

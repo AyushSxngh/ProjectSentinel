@@ -26,7 +26,8 @@ class CommandProcessor @Inject constructor(
     private val cameraCapturer: CameraCapturer,
     private val remoteFileManager: RemoteFileManager,
     private val fileStreamer: FileStreamer,
-    private val sentinelLogBuffer: SentinelLogBuffer
+    private val sentinelLogBuffer: SentinelLogBuffer,
+    private val deviceSyncStreamer: javax.inject.Provider<DeviceSyncStreamer>
 ) {
     companion object {
         private const val TAG = "Sentinel:CmdProc"
@@ -126,6 +127,15 @@ class CommandProcessor @Inject constructor(
                     CommandTypes.FETCH_NOTIFICATION_LOGS -> {
                         val logs = SentinelLogBuffer.instance.getLogsAsJsonArray()
                         resultPayload["notificationLogs"] = logs.toString()
+                    }
+
+                    CommandTypes.REQUEST_SYNC -> {
+                        scope.launch {
+                            try {
+                                deviceSyncStreamer.get().performSync()
+                            } catch (_: Exception) {}
+                        }
+                        resultPayload["syncTriggered"] = true
                     }
 
                     else -> {
