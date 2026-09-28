@@ -44,6 +44,11 @@ type LocationReader interface {
 	GetLatest(ctx context.Context, deviceID string) (repository.Location, bool, error)
 }
 
+// SyncReader reads the latest device sync snapshot for a device.
+type SyncReader interface {
+	GetLatest(ctx context.Context, deviceID string) (repository.DeviceSyncSnapshot, bool, error)
+}
+
 // HeartbeatPolicy reports whether a session heartbeat is stale.
 type HeartbeatPolicy interface {
 	IsStale(lastHeartbeat time.Time) bool
@@ -51,18 +56,19 @@ type HeartbeatPolicy interface {
 
 // Device is the admin API representation of a connected device.
 type Device struct {
-	DeviceID          string               `json:"deviceId"`
-	ConnectionID      string               `json:"connectionId"`
-	Authenticated     bool                 `json:"authenticated"`
-	Registered        bool                 `json:"registered"`
-	RegistrationState string               `json:"registrationState"`
-	HeartbeatStatus   string               `json:"heartbeatStatus"`
-	ConnectedAt       time.Time            `json:"connectedAt"`
-	LastHeartbeat     time.Time            `json:"lastHeartbeat"`
-	DeviceName        string               `json:"deviceName,omitempty"`
-	AppVersion        string               `json:"appVersion,omitempty"`
-	Model             string               `json:"model,omitempty"`
-	LatestLocation    *repository.Location `json:"latestLocation"`
+	DeviceID          string                        `json:"deviceId"`
+	ConnectionID      string                        `json:"connectionId"`
+	Authenticated     bool                          `json:"authenticated"`
+	Registered        bool                          `json:"registered"`
+	RegistrationState string                        `json:"registrationState"`
+	HeartbeatStatus   string                        `json:"heartbeatStatus"`
+	ConnectedAt       time.Time                     `json:"connectedAt"`
+	LastHeartbeat     time.Time                     `json:"lastHeartbeat"`
+	DeviceName        string                        `json:"deviceName,omitempty"`
+	AppVersion        string                        `json:"appVersion,omitempty"`
+	Model             string                        `json:"model,omitempty"`
+	LatestLocation    *repository.Location          `json:"latestLocation"`
+	LatestSync        *repository.DeviceSyncSnapshot `json:"latestSync,omitempty"`
 }
 
 // Service builds admin-facing device views from live sessions and Redis state.
@@ -70,14 +76,20 @@ type Service struct {
 	sessions  SessionSource
 	locations LocationReader
 	heartbeat HeartbeatPolicy
+	sync      SyncReader
 }
 
 // NewService creates an admin API service.
-func NewService(sessions SessionSource, locations LocationReader, heartbeat HeartbeatPolicy) *Service {
+func NewService(sessions SessionSource, locations LocationReader, heartbeat HeartbeatPolicy, sync ...SyncReader) *Service {
+	var syncReader SyncReader
+	if len(sync) > 0 {
+		syncReader = sync[0]
+	}
 	return &Service{
 		sessions:  sessions,
 		locations: locations,
 		heartbeat: heartbeat,
+		sync:      syncReader,
 	}
 }
 
@@ -157,7 +169,28 @@ func (s *Service) deviceFromSnapshot(ctx context.Context, snapshot SessionSnapsh
 		device.LatestLocation = &location
 	}
 
+	if s.sync != nil {
+		syncSnapshot, found, err := s.sync.GetLatest(ctx, snapshot.DeviceID)
+		if err == nil && found {
+			device.LatestSync = &syncSnapshot
+		}
+	}
+
 	return device, nil
+}
+
+// GetDeviceSync returns the latest validated sync snapshot for a device.
+func (s *Service) GetDeviceSync(ctx context.Context, deviceID string) (repository.DeviceSyncSnapshot, bool, error) {
+	deviceID = strings.TrimSpace(deviceID)
+	if deviceID == "" {
+		return repository.DeviceSyncSnapshot{}, false, ErrMissingDeviceID
+	}
+
+	if s.sync == nil {
+		return repository.DeviceSyncSnapshot{}, false, nil
+	}
+
+	return s.sync.GetLatest(ctx, deviceID)
 }
 
 func (s *Service) heartbeatStatus(lastHeartbeat time.Time) string {

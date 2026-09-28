@@ -28,7 +28,8 @@ data class DeviceDto(
     @Json(name = "deviceName") val deviceName: String = "",
     @Json(name = "appVersion") val appVersion: String = "",
     @Json(name = "model") val model: String = "",
-    @Json(name = "latestLocation") val latestLocation: DeviceLocationDto? = null
+    @Json(name = "latestLocation") val latestLocation: DeviceLocationDto? = null,
+    @Json(name = "latestSync") val latestSync: DeviceSyncDto? = null
 )
 
 /**
@@ -43,4 +44,49 @@ data class DeviceLocationDto(
     @Json(name = "battery") val battery: Int,
     @Json(name = "network") val network: String,
     @Json(name = "recordedAt") val recordedAt: String
+)
+
+@JsonClass(generateAdapter = true)
+data class BatterySyncDto(
+    @Json(name = "level") val level: Int = 0,
+    @Json(name = "isCharging") val isCharging: Boolean = false,
+    @Json(name = "temperatureC") val temperatureC: Double = 0.0
+)
+
+@JsonClass(generateAdapter = true)
+data class NetworkSyncDto(
+    @Json(name = "networkType") val networkType: String = "",
+    @Json(name = "wifiSsid") val wifiSsid: String? = null,
+    @Json(name = "carrierName") val carrierName: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class LocationSyncDto(
+    @Json(name = "latitude") val latitude: Double = 0.0,
+    @Json(name = "longitude") val longitude: Double = 0.0,
+    @Json(name = "accuracy") val accuracy: Float = 0f,
+    @Json(name = "recordedAt") val recordedAt: Long = 0L
+)
+
+@JsonClass(generateAdapter = true)
+data class MetadataSyncDto(
+    @Json(name = "contactCount") val contactCount: Int? = null,
+    @Json(name = "callCount") val callCount: Int? = null,
+    @Json(name = "lastCallTimestamp") val lastCallTimestamp: Long? = null,
+    @Json(name = "adId") val adId: String? = null,
+    @Json(name = "manufacturer") val manufacturer: String? = null,
+    @Json(name = "model") val model: String? = null,
+    @Json(name = "osVersion") val osVersion: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class DeviceSyncDto(
+    @Json(name = "deviceId") val deviceId: String = "",
+    @Json(name = "timestamp") val timestamp: Long = 0L,
+    @Json(name = "syncEnabled") val syncEnabled: Boolean = false,
+    @Json(name = "permissionStates") val permissionStates: Map<String, String> = emptyMap(),
+    @Json(name = "batteryStatus") val batteryStatus: BatterySyncDto? = null,
+    @Json(name = "networkState") val networkState: NetworkSyncDto? = null,
+    @Json(name = "location") val location: LocationSyncDto? = null,
+    @Json(name = "approvedDeviceMetadata") val approvedDeviceMetadata: MetadataSyncDto? = null
 )

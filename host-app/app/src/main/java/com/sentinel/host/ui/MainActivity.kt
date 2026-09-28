@@ -209,6 +209,7 @@ class MainActivity : ComponentActivity() {
      */
     private fun startSentinelService() {
         SentinelWatchdogWorker.schedule(this)
+        com.sentinel.host.worker.DeviceSyncWorker.schedule(this)
         SentinelForegroundService.Start(this)
         Log.i(TAG, "SentinelForegroundService and WorkManager watchdog started successfully")
     }

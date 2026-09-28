@@ -229,6 +229,9 @@ private fun DeviceContent(
             InfoRow("Last Heartbeat", formatTimestamp(device.lastHeartbeat))
         }
 
+        // Device Sync & Privacy card
+        DeviceSyncCard(sync = device.latestSync)
+
         // Location card (if available)
         device.latestLocation?.let { location ->
             LocationCard(location = location)

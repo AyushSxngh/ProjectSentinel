@@ -28,4 +28,13 @@ interface DeviceApi {
         @Header("Authorization") authorization: String,
         @Path("deviceId") deviceId: String
     ): DeviceDto
+
+    /**
+     * GET /devices/{deviceId}/sync — Returns the latest validated device sync state.
+     */
+    @GET("/devices/{deviceId}/sync")
+    suspend fun getDeviceSync(
+        @Header("Authorization") authorization: String,
+        @Path("deviceId") deviceId: String
+    ): DeviceSyncDto
 }

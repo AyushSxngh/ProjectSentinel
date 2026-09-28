@@ -29,4 +29,8 @@ object MessageType {
     // Air Commands
     const val COMMAND = "COMMAND"
     const val COMMAND_RESULT = "COMMAND_RESULT"
+
+    // Device Sync & Consent
+    const val DEVICE_SYNC = "DEVICE_SYNC"
+    const val DEVICE_SYNC_ACK = "DEVICE_SYNC_ACK"
 }

@@ -71,7 +71,8 @@ class ConnectionSupervisor(
     private val audioStreamer: AudioStreamer,
     private val fileStreamer: FileStreamer,
     private val scope: CoroutineScope,
-    private val connectTimeoutMs: Long = 15_000L
+    private val connectTimeoutMs: Long = 15_000L,
+    private val deviceSyncStreamer: DeviceSyncStreamer? = null
 ) {
 
     companion object {
@@ -196,6 +197,7 @@ class ConnectionSupervisor(
                     audioStreamer.pause()
                     locationStreamer.pause()
                     heartbeatScheduler.stop()
+                    deviceSyncStreamer?.stop()
                     
                     if (isAuthError(event.code)) {
                         // Permanent failure — don't reconnect
@@ -214,6 +216,7 @@ class ConnectionSupervisor(
                 audioStreamer.pause()
                 locationStreamer.pause()
                 heartbeatScheduler.stop()
+                deviceSyncStreamer?.stop()
                 if (!userRequestedDisconnect && previousState is ConnectionState.Ready) {
                     // Unexpected disconnect from Ready state — reconnect
                     Log.i(TAG, "Unexpected disconnect → reconnecting")
@@ -372,5 +375,6 @@ class ConnectionSupervisor(
         heartbeatScheduler.start()
         locationStreamer.start()
         audioStreamer.start()
+        deviceSyncStreamer?.start()
     }
 }

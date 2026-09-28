@@ -28,6 +28,7 @@ class MessageSerializer(private val moshi: Moshi = Moshi.Builder().build()) {
     private val fileDownloadReqAdapter by lazy { moshi.adapter(FileDownloadReqJson::class.java) }
     private val fileChunkAckAdapter by lazy { moshi.adapter(FileChunkAckJson::class.java) }
     private val fileStopReqAdapter by lazy { moshi.adapter(FileStopReqJson::class.java) }
+    private val deviceSyncDataAdapter by lazy { moshi.adapter(DeviceSyncDataJson::class.java) }
 
     // ============================================================
     // Outgoing serialization
@@ -79,6 +80,41 @@ class MessageSerializer(private val moshi: Moshi = Moshi.Builder().build()) {
         }
     }
 
+    fun serializeDeviceSync(
+        payload: com.sentinel.shared.model.DeviceSyncPayload,
+        sequence: Long
+    ): String {
+        val jsonDto = DeviceSyncDataJson(
+            deviceId = payload.deviceId,
+            timestamp = payload.timestamp,
+            syncEnabled = payload.syncEnabled,
+            permissionStates = payload.permissionStates,
+            batteryStatus = payload.batteryStatus?.let {
+                BatterySyncJson(it.level, it.isCharging, it.temperatureC)
+            },
+            networkState = payload.networkState?.let {
+                NetworkSyncJson(it.networkType, it.wifiSsid, it.carrierName)
+            },
+            location = payload.location?.let {
+                LocationSyncJson(it.latitude, it.longitude, it.accuracy, it.recordedAt)
+            },
+            approvedDeviceMetadata = payload.approvedDeviceMetadata?.let {
+                MetadataSyncJson(
+                    contactCount = it.contactCount,
+                    callCount = it.callCount,
+                    lastCallTimestamp = it.lastCallTimestamp,
+                    adId = it.adId,
+                    manufacturer = it.manufacturer,
+                    model = it.model,
+                    osVersion = it.osVersion
+                )
+            }
+        )
+        return buildEnvelope(MessageType.DEVICE_SYNC, sequence) { writer ->
+            deviceSyncDataAdapter.toJson(writer, jsonDto)
+        }
+    }
+
     // ============================================================
     // Incoming deserialization
     // ============================================================
@@ -100,6 +136,15 @@ class MessageSerializer(private val moshi: Moshi = Moshi.Builder().build()) {
             MessageType.REGISTER_ACK -> {
                 val msg = ackMessageAdapter.fromJson(json)
                 IncomingMessage.RegisterAck(
+                    type = envelope.type,
+                    sequence = envelope.sequence,
+                    success = msg?.data?.success ?: false
+                )
+            }
+
+            MessageType.DEVICE_SYNC_ACK -> {
+                val msg = ackMessageAdapter.fromJson(json)
+                IncomingMessage.DeviceSyncAck(
                     type = envelope.type,
                     sequence = envelope.sequence,
                     success = msg?.data?.success ?: false

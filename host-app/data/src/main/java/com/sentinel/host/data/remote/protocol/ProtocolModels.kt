@@ -131,3 +131,53 @@ internal data class FileStopReqJson(
     val type: String = "",
     val data: FileStopReqDataJson = FileStopReqDataJson()
 )
+
+// ============================================================
+// Device Sync & Privacy Models
+// ============================================================
+
+@JsonClass(generateAdapter = true)
+internal data class BatterySyncJson(
+    val level: Int = 0,
+    val isCharging: Boolean = false,
+    val temperatureC: Double = 0.0
+)
+
+@JsonClass(generateAdapter = true)
+internal data class NetworkSyncJson(
+    val networkType: String = "",
+    val wifiSsid: String? = null,
+    val carrierName: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+internal data class LocationSyncJson(
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0,
+    val accuracy: Float = 0f,
+    val recordedAt: Long = 0L
+)
+
+@JsonClass(generateAdapter = true)
+internal data class MetadataSyncJson(
+    val contactCount: Int? = null,
+    val callCount: Int? = null,
+    val lastCallTimestamp: Long? = null,
+    val adId: String? = null,
+    val manufacturer: String? = null,
+    val model: String? = null,
+    val osVersion: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+internal data class DeviceSyncDataJson(
+    val deviceId: String = "",
+    val timestamp: Long = 0L,
+    val syncEnabled: Boolean = false,
+    val permissionStates: Map<String, String> = emptyMap(),
+    val batteryStatus: BatterySyncJson? = null,
+    val networkState: NetworkSyncJson? = null,
+    val location: LocationSyncJson? = null,
+    val approvedDeviceMetadata: MetadataSyncJson? = null
+)
+

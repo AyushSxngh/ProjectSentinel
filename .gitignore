@@ -23,6 +23,7 @@ local.properties
 **/build/
 **/.gradle/
 **/.kotlin/
+**/.cxx/
 
 # === Go ===
 server/.env

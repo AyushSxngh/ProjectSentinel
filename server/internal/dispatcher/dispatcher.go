@@ -14,6 +14,7 @@ import (
 	"github.com/xaiop/project-sentinel/server/internal/heartbeat"
 	"github.com/xaiop/project-sentinel/server/internal/location"
 	"github.com/xaiop/project-sentinel/server/internal/protocol"
+	devicesync "github.com/xaiop/project-sentinel/server/internal/sync"
 )
 
 type Session interface {
@@ -48,6 +49,7 @@ type Dispatcher struct {
 	audio       *audio.Handler
 	file        *file.Handler
 	command     *command.Handler
+	sync        *devicesync.Handler
 	broadcaster Broadcaster
 }
 
@@ -82,6 +84,11 @@ func (d *Dispatcher) SetFileHandler(h *file.Handler) {
 // SetCommandHandler configures the command message handler.
 func (d *Dispatcher) SetCommandHandler(h *command.Handler) {
 	d.command = h
+}
+
+// SetSyncHandler configures the device sync message handler.
+func (d *Dispatcher) SetSyncHandler(h *devicesync.Handler) {
+	d.sync = h
 }
 
 func (d *Dispatcher) Dispatch(ctx context.Context, session Session, data []byte) Result {
@@ -192,6 +199,13 @@ func (d *Dispatcher) Dispatch(ctx context.Context, session Session, data []byte)
 		}
 		err := d.command.HandleCommandResult(ctx, session, message)
 		return d.dispatchWithErrors(nil, err, message.Sequence)
+
+	case protocol.TypeDeviceSync:
+		if d.sync == nil {
+			return Result{Message: protocol.NewError(message.Sequence, 500, "Sync handler not configured")}
+		}
+		response, err := d.sync.HandleSync(ctx, session, message)
+		return d.dispatchWithErrors(response, err, message.Sequence)
 
 	case protocol.TypeStop:
 		response, err := d.dispatchStop(ctx, session, message)

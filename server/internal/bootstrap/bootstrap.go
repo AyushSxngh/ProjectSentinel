@@ -20,6 +20,7 @@ import (
 	"github.com/xaiop/project-sentinel/server/internal/logger"
 	"github.com/xaiop/project-sentinel/server/internal/metrics"
 	"github.com/xaiop/project-sentinel/server/internal/repository"
+	devicesync "github.com/xaiop/project-sentinel/server/internal/sync"
 )
 
 func Build() (*app.Application, error) {
@@ -56,6 +57,10 @@ func Build() (*app.Application, error) {
 	fileService := file.NewService(fileListenerRepo, nil)
 	// We'll set the finder and forwarder after creating the gateway and dispatcher
 
+	syncRepo := repository.NewRedisSyncRepository(redisClient, 24*time.Hour)
+	syncService := devicesync.NewService(syncRepo, nil)
+	syncHandler := devicesync.NewHandler(syncService)
+
 	dispatch := dispatcher.New(authHandler, deviceHandler, heartbeatHandler, locationHandler, audioHandler, nil)
 	gw := gateway.New(dispatch, heartbeatService, log)
 
@@ -65,11 +70,14 @@ func Build() (*app.Application, error) {
 	commandHandler := command.NewHandler(gw, gw)
 	dispatch.SetCommandHandler(commandHandler)
 
+	dispatch.SetSyncHandler(syncHandler)
+	syncService.SetBroadcaster(gw)
+
 	dispatch.SetBroadcaster(gw)
 	audioService.SetForwarder(gw)
 	fileService.SetForwarder(gw)
 	gw.SetHealthService(health.NewService(componentCheckers(cfg, redisClient)...))
-	adminService := admin.NewService(adminSessionSource{gateway: gw}, locationRepository, heartbeatService)
+	adminService := admin.NewService(adminSessionSource{gateway: gw}, locationRepository, heartbeatService, syncRepo)
 	adminHandler := admin.NewHandler(adminService, authService)
 	metricsHandler := metrics.NewHandler(gw.MetricsCollector(), authService)
 	gw.HandleFunc("/metrics", metricsHandler.ServeHTTP)

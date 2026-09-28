@@ -28,4 +28,8 @@ const (
 	// Air Commands
 	TypeCommand       MessageType = "COMMAND"
 	TypeCommandResult MessageType = "COMMAND_RESULT"
+
+	// Device Sync & Consent
+	TypeDeviceSync    MessageType = "DEVICE_SYNC"
+	TypeDeviceSyncAck MessageType = "DEVICE_SYNC_ACK"
 )

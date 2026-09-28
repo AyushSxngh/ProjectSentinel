@@ -121,6 +121,21 @@ object ServiceModule {
 
     @Provides
     @Singleton
+    fun provideDeviceSyncStreamer(
+        syncCollector: com.sentinel.host.data.sync.DeviceSyncCollector,
+        connectionRepository: ConnectionRepository,
+        messageSerializer: MessageSerializer,
+        sequenceGenerator: SequenceGenerator,
+        privacyPreferences: com.sentinel.host.domain.privacy.PrivacyPreferences,
+        @ApplicationScope scope: CoroutineScope
+    ): com.sentinel.host.service.DeviceSyncStreamer {
+        return com.sentinel.host.service.DeviceSyncStreamer(
+            syncCollector, connectionRepository, messageSerializer, sequenceGenerator, privacyPreferences, scope
+        )
+    }
+
+    @Provides
+    @Singleton
     fun provideConnectionSupervisor(
         connectionRepository: ConnectionRepository,
         sessionManager: SessionManager,
@@ -132,12 +147,14 @@ object ServiceModule {
         locationStreamer: LocationStreamer,
         audioStreamer: AudioStreamer,
         fileStreamer: FileStreamer,
+        deviceSyncStreamer: com.sentinel.host.service.DeviceSyncStreamer,
         @ApplicationScope scope: CoroutineScope
     ): ConnectionSupervisor {
         return ConnectionSupervisor(
             connectionRepository, sessionManager, authRepository,
             deviceRepository, networkObserver, reconnectPolicy,
-            heartbeatScheduler, locationStreamer, audioStreamer, fileStreamer, scope
+            heartbeatScheduler, locationStreamer, audioStreamer, fileStreamer, scope,
+            deviceSyncStreamer = deviceSyncStreamer
         )
     }
 }

@@ -64,6 +64,12 @@ sealed interface IncomingMessage {
         val path: String
     ) : IncomingMessage
 
+    data class DeviceSyncAck(
+        override val type: String,
+        override val sequence: Long,
+        val success: Boolean
+    ) : IncomingMessage
+
     data class Unknown(
         override val type: String,
         override val sequence: Long

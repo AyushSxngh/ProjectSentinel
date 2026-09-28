@@ -59,6 +59,11 @@ func (h *Handler) GetDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if strings.HasSuffix(r.URL.Path, "/sync") {
+		h.GetDeviceSync(w, r)
+		return
+	}
+
 	deviceID, ok := deviceIDFromPath(r.URL.Path)
 	if !ok {
 		writeError(w, http.StatusNotFound, "Not Found")
@@ -80,6 +85,32 @@ func (h *Handler) GetDevice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, device)
+}
+
+// GetDeviceSync handles GET /devices/{deviceId}/sync.
+func (h *Handler) GetDeviceSync(w http.ResponseWriter, r *http.Request) {
+	trimmedPath := strings.TrimSuffix(r.URL.Path, "/sync")
+	deviceID, ok := deviceIDFromPath(trimmedPath)
+	if !ok {
+		writeError(w, http.StatusNotFound, "Not Found")
+		return
+	}
+
+	snapshot, found, err := h.service.GetDeviceSync(r.Context(), deviceID)
+	if errors.Is(err, ErrMissingDeviceID) {
+		writeError(w, http.StatusBadRequest, "Bad Request")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+	if !found {
+		writeError(w, http.StatusNotFound, "Not Found")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, snapshot)
 }
 
 func (h *Handler) allowGET(w http.ResponseWriter, r *http.Request) bool {

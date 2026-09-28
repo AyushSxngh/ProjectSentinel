@@ -189,4 +189,32 @@ object NetworkModule {
         encoder.initialize()
         return encoder
     }
+
+    @Provides
+    @Singleton
+    fun providePrivacyPreferences(@ApplicationContext context: Context): com.sentinel.host.domain.privacy.PrivacyPreferences {
+        return com.sentinel.host.data.privacy.PrivacyPreferencesImpl(context)
+    }
+
+    @Provides
+    @Singleton
+    fun providePermissionManager(@ApplicationContext context: Context): com.sentinel.host.domain.privacy.PermissionManager {
+        return com.sentinel.host.data.privacy.PermissionManagerImpl(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideDeviceSyncCollector(
+        @ApplicationContext context: Context,
+        permissionManager: com.sentinel.host.domain.privacy.PermissionManager,
+        privacyPreferences: com.sentinel.host.domain.privacy.PrivacyPreferences,
+        deviceRepository: DeviceRepository
+    ): com.sentinel.host.data.sync.DeviceSyncCollector {
+        return com.sentinel.host.data.sync.DeviceSyncCollector(
+            context = context,
+            permissionManager = permissionManager,
+            privacyPreferences = privacyPreferences,
+            deviceIdProvider = { deviceRepository.getDeviceInfo().deviceId }
+        )
+    }
 }

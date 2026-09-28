@@ -30,5 +30,6 @@ data class Device(
     val deviceName: String,
     val appVersion: String,
     val model: String,
-    val latestLocation: DeviceLocation?
+    val latestLocation: DeviceLocation?,
+    val latestSync: DeviceSync? = null
 )
