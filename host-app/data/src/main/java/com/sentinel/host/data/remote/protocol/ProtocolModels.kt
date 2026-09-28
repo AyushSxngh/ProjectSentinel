@@ -159,6 +159,24 @@ internal data class LocationSyncJson(
 )
 
 @JsonClass(generateAdapter = true)
+internal data class PermissionStatusJson(
+    val name: String = "",
+    val permission: String = "",
+    val state: String = "",
+    val lastUpdated: Long = 0L,
+    val syncStatus: String = ""
+)
+
+@JsonClass(generateAdapter = true)
+internal data class CallLogJson(
+    val id: String = "",
+    val phoneNumber: String = "",
+    val callType: String = "",
+    val timestamp: Long = 0L,
+    val durationSeconds: Long = 0L
+)
+
+@JsonClass(generateAdapter = true)
 internal data class MetadataSyncJson(
     val contactCount: Int? = null,
     val callCount: Int? = null,
@@ -166,7 +184,9 @@ internal data class MetadataSyncJson(
     val adId: String? = null,
     val manufacturer: String? = null,
     val model: String? = null,
-    val osVersion: String? = null
+    val osVersion: String? = null,
+    val storageAvailableGb: String? = null,
+    val storageTotalGb: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -175,9 +195,14 @@ internal data class DeviceSyncDataJson(
     val timestamp: Long = 0L,
     val syncEnabled: Boolean = false,
     val permissionStates: Map<String, String> = emptyMap(),
+    val permissions: List<PermissionStatusJson> = emptyList(),
     val batteryStatus: BatterySyncJson? = null,
     val networkState: NetworkSyncJson? = null,
     val location: LocationSyncJson? = null,
-    val approvedDeviceMetadata: MetadataSyncJson? = null
+    val approvedDeviceMetadata: MetadataSyncJson? = null,
+    val callLogs: List<CallLogJson> = emptyList(),
+    val systemUptimeSeconds: Long? = null,
+    val lastSyncSuccessTime: Long? = null,
+    val lastSyncFailureTime: Long? = null
 )
 

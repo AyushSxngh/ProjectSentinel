@@ -1,5 +1,8 @@
 package com.sentinel.admin.domain.model
 
+import com.sentinel.shared.model.CallLogRecord
+import com.sentinel.shared.model.PermissionStatusRecord
+
 /**
  * Domain model for approved device telemetry synchronization.
  */
@@ -8,10 +11,15 @@ data class DeviceSync(
     val timestamp: Long,
     val syncEnabled: Boolean,
     val permissionStates: Map<String, String> = emptyMap(),
+    val permissions: List<PermissionStatusRecord> = emptyList(),
     val batteryStatus: BatterySync? = null,
     val networkState: NetworkSync? = null,
     val location: LocationSync? = null,
-    val approvedDeviceMetadata: MetadataSync? = null
+    val approvedDeviceMetadata: MetadataSync? = null,
+    val callLogs: List<CallLogRecord> = emptyList(),
+    val systemUptimeSeconds: Long? = null,
+    val lastSyncSuccessTime: Long? = null,
+    val lastSyncFailureTime: Long? = null
 )
 
 data class BatterySync(
@@ -40,5 +48,7 @@ data class MetadataSync(
     val adId: String?,
     val manufacturer: String?,
     val model: String?,
-    val osVersion: String?
+    val osVersion: String?,
+    val storageAvailableGb: String? = null,
+    val storageTotalGb: String? = null
 )

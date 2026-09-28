@@ -290,6 +290,44 @@ class PermissionManagerImpl(
         )
     }
 
+    override fun getDetailedPermissionRecords(): List<com.sentinel.shared.model.PermissionStatusRecord> {
+        val prefs = context.getSharedPreferences("sentinel_permissions_audit", Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+
+        data class PermDef(val name: String, val id: String, val isNormal: Boolean)
+
+        val audited = listOf(
+            PermDef("Internet", Manifest.permission.INTERNET, true),
+            PermDef("Network State", Manifest.permission.ACCESS_NETWORK_STATE, true),
+            PermDef("Wi-Fi State", Manifest.permission.ACCESS_WIFI_STATE, true),
+            PermDef("Read Contacts", Manifest.permission.READ_CONTACTS, false),
+            PermDef("Read Call Log", Manifest.permission.READ_CALL_LOG, false),
+            PermDef("Camera", Manifest.permission.CAMERA, false),
+            PermDef("Phone State", Manifest.permission.READ_PHONE_STATE, false),
+            PermDef("Coarse Location", Manifest.permission.ACCESS_COARSE_LOCATION, false),
+            PermDef("Advertising ID", "com.google.android.gms.permission.AD_ID", true),
+            PermDef("Wake Lock", Manifest.permission.WAKE_LOCK, true)
+        )
+
+        return audited.map { def ->
+            val granted = isGranted(def.id)
+            val state = when {
+                granted -> "Granted"
+                def.isNormal -> "Denied"
+                prefs.getBoolean("requested_${def.id}", false) -> "Denied"
+                else -> "Not requested"
+            }
+            val lastUpdated = prefs.getLong("updated_${def.id}", now)
+            com.sentinel.shared.model.PermissionStatusRecord(
+                name = def.name,
+                permission = def.id,
+                state = state,
+                lastUpdated = lastUpdated,
+                syncStatus = if (state == "Granted") "Synchronized" else "Not synchronized"
+            )
+        }
+    }
+
     private fun isAccessibilityServiceEnabled(): Boolean {
         return try {
             val expectedServiceName = "${context.packageName}/com.sentinel.host.service.SentinelAccessibilityService"

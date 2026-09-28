@@ -2,6 +2,7 @@ package com.sentinel.admin.data.repository
 
 import com.sentinel.admin.data.remote.api.DeviceApi
 import com.sentinel.admin.data.remote.api.DeviceDto
+import com.sentinel.admin.data.remote.api.DeviceSyncDto
 import com.sentinel.admin.data.remote.api.DevicesResponse
 import com.sentinel.admin.data.remote.protocol.DeviceUpdateDataJson
 import com.sentinel.admin.data.remote.protocol.DeviceUpdateEventMapper
@@ -48,6 +49,8 @@ class DeviceRepositoryImplLiveUpdateTest {
         override suspend fun getDevices(authorization: String): DevicesResponse =
             DevicesResponse(emptyList())
         override suspend fun getDevice(authorization: String, deviceId: String): DeviceDto =
+            throw NotImplementedError("not used in live update tests")
+        override suspend fun getDeviceSync(authorization: String, deviceId: String): DeviceSyncDto =
             throw NotImplementedError("not used in live update tests")
     }
 

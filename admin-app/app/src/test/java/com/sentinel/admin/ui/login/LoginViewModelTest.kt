@@ -218,6 +218,8 @@ class LoginViewModelTest {
         viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
 
+        viewModel.onServerUrlChanged("")
+        viewModel.onTokenChanged("")
         viewModel.connect()
         testDispatcher.scheduler.advanceUntilIdle()
 

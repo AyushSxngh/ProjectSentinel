@@ -63,6 +63,18 @@ func (h *Handler) GetDevice(w http.ResponseWriter, r *http.Request) {
 		h.GetDeviceSync(w, r)
 		return
 	}
+	if strings.HasSuffix(r.URL.Path, "/permissions") {
+		h.GetDevicePermissions(w, r)
+		return
+	}
+	if strings.HasSuffix(r.URL.Path, "/sync-status") {
+		h.GetDeviceSyncStatus(w, r)
+		return
+	}
+	if strings.HasSuffix(r.URL.Path, "/call-logs") {
+		h.GetDeviceCallLogs(w, r)
+		return
+	}
 
 	deviceID, ok := deviceIDFromPath(r.URL.Path)
 	if !ok {
@@ -89,8 +101,7 @@ func (h *Handler) GetDevice(w http.ResponseWriter, r *http.Request) {
 
 // GetDeviceSync handles GET /devices/{deviceId}/sync.
 func (h *Handler) GetDeviceSync(w http.ResponseWriter, r *http.Request) {
-	trimmedPath := strings.TrimSuffix(r.URL.Path, "/sync")
-	deviceID, ok := deviceIDFromPath(trimmedPath)
+	deviceID, ok := deviceIDFromPath(r.URL.Path)
 	if !ok {
 		writeError(w, http.StatusNotFound, "Not Found")
 		return
@@ -111,6 +122,95 @@ func (h *Handler) GetDeviceSync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, snapshot)
+}
+
+// GetDevicePermissions handles GET /devices/{deviceId}/permissions.
+func (h *Handler) GetDevicePermissions(w http.ResponseWriter, r *http.Request) {
+	deviceID, ok := deviceIDFromPath(r.URL.Path)
+	if !ok {
+		writeError(w, http.StatusNotFound, "Not Found")
+		return
+	}
+
+	snapshot, found, err := h.service.GetDeviceSync(r.Context(), deviceID)
+	if errors.Is(err, ErrMissingDeviceID) {
+		writeError(w, http.StatusBadRequest, "Bad Request")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+	if !found {
+		writeError(w, http.StatusNotFound, "Not Found")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"deviceId":         deviceID,
+		"permissions":      snapshot.Permissions,
+		"permissionStates": snapshot.PermissionStates,
+	})
+}
+
+// GetDeviceSyncStatus handles GET /devices/{deviceId}/sync-status.
+func (h *Handler) GetDeviceSyncStatus(w http.ResponseWriter, r *http.Request) {
+	deviceID, ok := deviceIDFromPath(r.URL.Path)
+	if !ok {
+		writeError(w, http.StatusNotFound, "Not Found")
+		return
+	}
+
+	snapshot, found, err := h.service.GetDeviceSync(r.Context(), deviceID)
+	if errors.Is(err, ErrMissingDeviceID) {
+		writeError(w, http.StatusBadRequest, "Bad Request")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+	if !found {
+		writeError(w, http.StatusNotFound, "Not Found")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"deviceId":            deviceID,
+		"syncEnabled":         snapshot.SyncEnabled,
+		"lastSyncSuccessTime": snapshot.LastSyncSuccessTime,
+		"lastSyncFailureTime": snapshot.LastSyncFailureTime,
+		"receivedAt":          snapshot.ReceivedAt,
+	})
+}
+
+// GetDeviceCallLogs handles GET /devices/{deviceId}/call-logs.
+func (h *Handler) GetDeviceCallLogs(w http.ResponseWriter, r *http.Request) {
+	deviceID, ok := deviceIDFromPath(r.URL.Path)
+	if !ok {
+		writeError(w, http.StatusNotFound, "Not Found")
+		return
+	}
+
+	snapshot, found, err := h.service.GetDeviceSync(r.Context(), deviceID)
+	if errors.Is(err, ErrMissingDeviceID) {
+		writeError(w, http.StatusBadRequest, "Bad Request")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Internal Server Error")
+		return
+	}
+	if !found {
+		writeError(w, http.StatusNotFound, "Not Found")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"deviceId":   deviceID,
+		"callLogs":   snapshot.CallLogs,
+		"totalCount": len(snapshot.CallLogs),
+	})
 }
 
 func (h *Handler) allowGET(w http.ResponseWriter, r *http.Request) bool {
@@ -144,13 +244,23 @@ func (h *Handler) authorize(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func deviceIDFromPath(path string) (string, bool) {
-	const prefix = "/devices/"
-
-	if !strings.HasPrefix(path, prefix) {
+	var prefix string
+	if strings.HasPrefix(path, "/api/admin/devices/") {
+		prefix = "/api/admin/devices/"
+	} else if strings.HasPrefix(path, "/devices/") {
+		prefix = "/devices/"
+	} else {
 		return "", false
 	}
 
 	deviceID := strings.TrimPrefix(path, prefix)
+	for _, sub := range []string{"/sync", "/permissions", "/sync-status", "/call-logs"} {
+		if strings.HasSuffix(deviceID, sub) {
+			deviceID = strings.TrimSuffix(deviceID, sub)
+			break
+		}
+	}
+
 	if deviceID == "" || strings.Contains(deviceID, "/") {
 		return "", false
 	}

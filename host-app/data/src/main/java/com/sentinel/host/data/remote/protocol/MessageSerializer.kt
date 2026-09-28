@@ -89,6 +89,15 @@ class MessageSerializer(private val moshi: Moshi = Moshi.Builder().build()) {
             timestamp = payload.timestamp,
             syncEnabled = payload.syncEnabled,
             permissionStates = payload.permissionStates,
+            permissions = payload.permissions.map {
+                PermissionStatusJson(
+                    name = it.name,
+                    permission = it.permission,
+                    state = it.state,
+                    lastUpdated = it.lastUpdated,
+                    syncStatus = it.syncStatus
+                )
+            },
             batteryStatus = payload.batteryStatus?.let {
                 BatterySyncJson(it.level, it.isCharging, it.temperatureC)
             },
@@ -106,9 +115,23 @@ class MessageSerializer(private val moshi: Moshi = Moshi.Builder().build()) {
                     adId = it.adId,
                     manufacturer = it.manufacturer,
                     model = it.model,
-                    osVersion = it.osVersion
+                    osVersion = it.osVersion,
+                    storageAvailableGb = it.storageAvailableGb,
+                    storageTotalGb = it.storageTotalGb
                 )
-            }
+            },
+            callLogs = payload.callLogs.map {
+                CallLogJson(
+                    id = it.id,
+                    phoneNumber = it.phoneNumber,
+                    callType = it.callType,
+                    timestamp = it.timestamp,
+                    durationSeconds = it.durationSeconds
+                )
+            },
+            systemUptimeSeconds = payload.systemUptimeSeconds,
+            lastSyncSuccessTime = payload.lastSyncSuccessTime,
+            lastSyncFailureTime = payload.lastSyncFailureTime
         )
         return buildEnvelope(MessageType.DEVICE_SYNC, sequence) { writer ->
             deviceSyncDataAdapter.toJson(writer, jsonDto)

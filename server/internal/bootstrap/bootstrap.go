@@ -83,6 +83,8 @@ func Build() (*app.Application, error) {
 	gw.HandleFunc("/metrics", metricsHandler.ServeHTTP)
 	gw.HandleFunc("/devices", adminHandler.ListDevices)
 	gw.HandleFunc("/devices/", adminHandler.GetDevice)
+	gw.HandleFunc("/api/admin/devices", adminHandler.ListDevices)
+	gw.HandleFunc("/api/admin/devices/", adminHandler.GetDevice)
 
 	application := &app.Application{
 		Config:  cfg,

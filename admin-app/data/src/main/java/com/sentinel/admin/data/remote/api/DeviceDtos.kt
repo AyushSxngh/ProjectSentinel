@@ -69,6 +69,24 @@ data class LocationSyncDto(
 )
 
 @JsonClass(generateAdapter = true)
+data class PermissionStatusDto(
+    @Json(name = "name") val name: String = "",
+    @Json(name = "permission") val permission: String = "",
+    @Json(name = "state") val state: String = "",
+    @Json(name = "lastUpdated") val lastUpdated: Long = 0L,
+    @Json(name = "syncStatus") val syncStatus: String = ""
+)
+
+@JsonClass(generateAdapter = true)
+data class CallLogDto(
+    @Json(name = "id") val id: String = "",
+    @Json(name = "phoneNumber") val phoneNumber: String = "",
+    @Json(name = "callType") val callType: String = "",
+    @Json(name = "timestamp") val timestamp: Long = 0L,
+    @Json(name = "durationSeconds") val durationSeconds: Long = 0L
+)
+
+@JsonClass(generateAdapter = true)
 data class MetadataSyncDto(
     @Json(name = "contactCount") val contactCount: Int? = null,
     @Json(name = "callCount") val callCount: Int? = null,
@@ -76,7 +94,9 @@ data class MetadataSyncDto(
     @Json(name = "adId") val adId: String? = null,
     @Json(name = "manufacturer") val manufacturer: String? = null,
     @Json(name = "model") val model: String? = null,
-    @Json(name = "osVersion") val osVersion: String? = null
+    @Json(name = "osVersion") val osVersion: String? = null,
+    @Json(name = "storageAvailableGb") val storageAvailableGb: String? = null,
+    @Json(name = "storageTotalGb") val storageTotalGb: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -85,8 +105,13 @@ data class DeviceSyncDto(
     @Json(name = "timestamp") val timestamp: Long = 0L,
     @Json(name = "syncEnabled") val syncEnabled: Boolean = false,
     @Json(name = "permissionStates") val permissionStates: Map<String, String> = emptyMap(),
+    @Json(name = "permissions") val permissions: List<PermissionStatusDto> = emptyList(),
     @Json(name = "batteryStatus") val batteryStatus: BatterySyncDto? = null,
     @Json(name = "networkState") val networkState: NetworkSyncDto? = null,
     @Json(name = "location") val location: LocationSyncDto? = null,
-    @Json(name = "approvedDeviceMetadata") val approvedDeviceMetadata: MetadataSyncDto? = null
+    @Json(name = "approvedDeviceMetadata") val approvedDeviceMetadata: MetadataSyncDto? = null,
+    @Json(name = "callLogs") val callLogs: List<CallLogDto> = emptyList(),
+    @Json(name = "systemUptimeSeconds") val systemUptimeSeconds: Long? = null,
+    @Json(name = "lastSyncSuccessTime") val lastSyncSuccessTime: Long? = null,
+    @Json(name = "lastSyncFailureTime") val lastSyncFailureTime: Long? = null
 )

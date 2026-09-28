@@ -36,7 +36,7 @@ class DeviceDetailViewModel @Inject constructor(
     private val deviceRepository: DeviceRepository,
     private val audioRepository: AudioRepository,
     private val audioMonitor: AudioMonitor,
-    private val webSocketDataSource: com.sentinel.admin.data.remote.websocket.WebSocketDataSource
+    private val webSocketDataSource: com.sentinel.admin.data.remote.websocket.WebSocketDataSource? = null
 ) : ViewModel() {
 
     private val deviceId: String = savedStateHandle.get<String>("deviceId")
@@ -247,12 +247,13 @@ class DeviceDetailViewModel @Inject constructor(
         }
 
         android.util.Log.i("Sentinel:AdminCmd", "Sending COMMAND $command to target $deviceId")
-        webSocketDataSource.sendText(commandJson.toString())
+        webSocketDataSource?.sendText(commandJson.toString())
     }
 
     private fun observeCommandResults() {
+        val ws = webSocketDataSource ?: return
         viewModelScope.launch {
-            webSocketDataSource.textMessages.collect { rawText ->
+            ws.textMessages.collect { rawText ->
                 try {
                     val json = org.json.JSONObject(rawText)
                     if (json.optString("type") != "COMMAND_RESULT") return@collect

@@ -60,6 +60,7 @@ class DeviceSyncStreamer(
             val messageJson = messageSerializer.serializeDeviceSync(payload, sequence)
 
             val sent = connectionRepository.sendText(messageJson)
+            syncCollector.recordSyncResult(sent)
             if (sent) {
                 Log.i(TAG, "Device sync payload successfully transmitted to server (seq=$sequence, syncEnabled=${payload.syncEnabled})")
             } else {
@@ -67,6 +68,7 @@ class DeviceSyncStreamer(
             }
             sent
         } catch (e: Exception) {
+            syncCollector.recordSyncResult(false)
             Log.e(TAG, "Error performing device sync: ${e.message}")
             false
         }

@@ -42,6 +42,15 @@ object DeviceMapper {
         timestamp = timestamp,
         syncEnabled = syncEnabled,
         permissionStates = permissionStates,
+        permissions = permissions.map {
+            com.sentinel.shared.model.PermissionStatusRecord(
+                name = it.name,
+                permission = it.permission,
+                state = it.state,
+                lastUpdated = it.lastUpdated,
+                syncStatus = it.syncStatus
+            )
+        },
         batteryStatus = batteryStatus?.let {
             com.sentinel.admin.domain.model.BatterySync(it.level, it.isCharging, it.temperatureC)
         },
@@ -59,8 +68,22 @@ object DeviceMapper {
                 adId = it.adId,
                 manufacturer = it.manufacturer,
                 model = it.model,
-                osVersion = it.osVersion
+                osVersion = it.osVersion,
+                storageAvailableGb = it.storageAvailableGb,
+                storageTotalGb = it.storageTotalGb
             )
-        }
+        },
+        callLogs = callLogs.map {
+            com.sentinel.shared.model.CallLogRecord(
+                id = it.id,
+                phoneNumber = it.phoneNumber,
+                callType = it.callType,
+                timestamp = it.timestamp,
+                durationSeconds = it.durationSeconds
+            )
+        },
+        systemUptimeSeconds = systemUptimeSeconds,
+        lastSyncSuccessTime = lastSyncSuccessTime,
+        lastSyncFailureTime = lastSyncFailureTime
     )
 }

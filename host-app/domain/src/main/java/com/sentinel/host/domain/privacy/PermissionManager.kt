@@ -25,4 +25,9 @@ interface PermissionManager {
      * Returns a map of permission short-name to "granted" or "denied" for payload serialization.
      */
     fun getPermissionStatesMap(): Map<String, String>
+
+    /**
+     * Returns the full list of audited permissions with Android identifiers, state, and sync status.
+     */
+    fun getDetailedPermissionRecords(): List<com.sentinel.shared.model.PermissionStatusRecord>
 }

@@ -219,17 +219,36 @@ private fun DeviceContent(
             InfoRow("Device Name", device.deviceName)
             InfoRow("Device ID", device.deviceId)
             InfoRow("Model", device.model)
-            InfoRow("App Version", device.appVersion)
+            device.latestSync?.approvedDeviceMetadata?.osVersion?.let {
+                InfoRow("Android Version", it)
+            }
+            InfoRow("Host App Version", device.appVersion)
+            InfoRow("First Registration", formatTimestamp(device.connectedAt))
+            InfoRow("Last Seen", formatTimestamp(device.lastHeartbeat))
+            val lastSyncTime = device.latestSync?.let { s ->
+                val ts = s.lastSyncSuccessTime ?: s.timestamp
+                if (ts > 0) formatTimestamp(java.time.Instant.ofEpochSecond(ts).toString()) else null
+            }
+            InfoRow("Last Synchronization", lastSyncTime ?: "Not synchronized yet")
             InfoRow("Connection ID", device.connectionId)
         }
 
         // Connection card
-        InfoCard(title = "Connection") {
-            InfoRow("Status", if (isOnline) "Online" else "Offline")
+        InfoCard(title = "Connection & Synchronization") {
+            InfoRow("Status", if (isOnline) "Connected (Online)" else "Disconnected (Offline)")
             InfoRow("Authenticated", if (device.authenticated) "Yes" else "No")
             InfoRow("Registration", device.registrationState.replaceFirstChar { it.uppercase() })
             InfoRow("Connected At", formatTimestamp(device.connectedAt))
             InfoRow("Last Heartbeat", formatTimestamp(device.lastHeartbeat))
+            device.latestSync?.let { s ->
+                InfoRow("Sync Master Switch", if (s.syncEnabled) "Enabled" else "Disabled")
+                s.lastSyncSuccessTime?.let {
+                    InfoRow("Last Successful Sync", formatTimestamp(java.time.Instant.ofEpochSecond(it).toString()))
+                }
+                s.lastSyncFailureTime?.let {
+                    InfoRow("Last Failed Sync", formatTimestamp(java.time.Instant.ofEpochSecond(it).toString()))
+                }
+            }
         }
 
         // Device Sync & Privacy card

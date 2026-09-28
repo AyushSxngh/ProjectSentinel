@@ -29,7 +29,9 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.NetworkCell
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -369,9 +371,35 @@ private fun DeviceCard(
                 }
             }
 
+            // Telemetry & Permissions summary
+            val sync = device.latestSync
+            val totalPerms = if (sync?.permissions?.isNotEmpty() == true) sync.permissions.size else sync?.permissionStates?.size ?: 0
+            val grantedPerms = if (sync?.permissions?.isNotEmpty() == true) {
+                sync.permissions.count { it.state.equals("Granted", ignoreCase = true) }
+            } else {
+                sync?.permissionStates?.values?.count { it.equals("granted", ignoreCase = true) } ?: 0
+            }
+
+            if (sync != null) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    InfoChip(
+                        icon = { Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                        text = "Permissions: $grantedPerms/$totalPerms granted"
+                    )
+                    InfoChip(
+                        icon = { Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                        text = "Sync: ${if (sync.syncEnabled) "Enabled" else "Disabled"}"
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Footer: registration + last heartbeat
+            // Footer: registration + last heartbeat / last seen
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -382,7 +410,7 @@ private fun DeviceCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "HB: ${formatTimestamp(device.lastHeartbeat)}",
+                    text = "Last seen: ${formatTimestamp(device.lastHeartbeat)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

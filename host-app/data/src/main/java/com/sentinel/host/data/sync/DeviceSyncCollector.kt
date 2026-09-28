@@ -13,13 +13,19 @@ import android.provider.CallLog
 import android.provider.ContactsContract
 import android.telephony.TelephonyManager
 import android.util.Log
+import android.os.Environment
+import android.os.StatFs
+import android.os.SystemClock
 import com.sentinel.host.domain.privacy.PermissionManager
 import com.sentinel.host.domain.privacy.PrivacyPreferences
 import com.sentinel.shared.model.BatterySyncData
+import com.sentinel.shared.model.CallLogRecord
 import com.sentinel.shared.model.DeviceMetadataSyncData
 import com.sentinel.shared.model.DeviceSyncPayload
 import com.sentinel.shared.model.LocationSyncData
 import com.sentinel.shared.model.NetworkSyncData
+import com.sentinel.shared.model.PermissionStatusRecord
+import java.util.Locale
 
 class DeviceSyncCollector(
     private val context: Context,
@@ -31,28 +37,68 @@ class DeviceSyncCollector(
         private const val TAG = "Sentinel:SyncCollector"
     }
 
+    @Volatile
+    private var lastSyncSuccessTime: Long? = null
+    @Volatile
+    private var lastSyncFailureTime: Long? = null
+
+    fun recordSyncResult(success: Boolean) {
+        val now = System.currentTimeMillis() / 1000
+        if (success) {
+            lastSyncSuccessTime = now
+        } else {
+            lastSyncFailureTime = now
+        }
+    }
+
     /**
      * Gathers the approved device synchronization payload.
      *
      * Strict privacy guarantees:
      * - If syncWithAdminEnabled is false, returns an empty/disabled payload.
      * - Sub-features only gather data if permission is granted AND feature toggle is ON.
-     * - Zero personal identifiers, names, phone numbers, or complete logs are ever gathered.
+     * - Zero personal identifiers, names, phone numbers, or complete logs are ever gathered without explicit permission.
      */
     fun collectPayload(): DeviceSyncPayload {
         val syncEnabled = privacyPreferences.syncWithAdminEnabled.value
         val deviceId = deviceIdProvider()
         val timestamp = System.currentTimeMillis() / 1000
+        val uptimeSeconds = SystemClock.elapsedRealtime() / 1000
 
         permissionManager.refreshPermissions()
         val permStates = permissionManager.getPermissionStatesMap()
+        val rawPermissions = permissionManager.getDetailedPermissionRecords()
+        val permissions = rawPermissions.map { record ->
+            val syncStatus = if (!syncEnabled) {
+                "Disabled"
+            } else if (record.state != "Granted") {
+                "Not synchronized"
+            } else {
+                when (record.permission) {
+                    Manifest.permission.READ_CONTACTS ->
+                        if (privacyPreferences.syncContactsSummaryEnabled.value) "Synchronized" else "Disabled"
+                    Manifest.permission.READ_CALL_LOG ->
+                        if (privacyPreferences.syncCallLogSummaryEnabled.value) "Synchronized" else "Disabled"
+                    Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION ->
+                        if (privacyPreferences.syncLocationEnabled.value) "Synchronized" else "Disabled"
+                    Manifest.permission.READ_PHONE_STATE ->
+                        if (privacyPreferences.syncPhoneStateEnabled.value) "Synchronized" else "Disabled"
+                    else -> "Synchronized"
+                }
+            }
+            record.copy(syncStatus = syncStatus)
+        }
 
         if (!syncEnabled) {
             return DeviceSyncPayload(
                 deviceId = deviceId,
                 timestamp = timestamp,
                 syncEnabled = false,
-                permissionStates = permStates
+                permissionStates = permStates,
+                permissions = permissions,
+                systemUptimeSeconds = uptimeSeconds,
+                lastSyncSuccessTime = lastSyncSuccessTime,
+                lastSyncFailureTime = lastSyncFailureTime
             )
         }
 
@@ -74,15 +120,27 @@ class DeviceSyncCollector(
         // 4. Approved Metadata
         val metadata = collectApprovedMetadata()
 
+        // 5. Call Logs (Only if READ_CALL_LOG granted)
+        val callLogs = if (permissionManager.isPermissionGranted(Manifest.permission.READ_CALL_LOG)) {
+            collectCallLogs()
+        } else {
+            emptyList()
+        }
+
         return DeviceSyncPayload(
             deviceId = deviceId,
             timestamp = timestamp,
             syncEnabled = true,
             permissionStates = permStates,
+            permissions = permissions,
             batteryStatus = batteryData,
             networkState = networkData,
             location = locationData,
-            approvedDeviceMetadata = metadata
+            approvedDeviceMetadata = metadata,
+            callLogs = callLogs,
+            systemUptimeSeconds = uptimeSeconds,
+            lastSyncSuccessTime = lastSyncSuccessTime,
+            lastSyncFailureTime = lastSyncFailureTime
         )
     }
 
@@ -206,13 +264,84 @@ class DeviceSyncCollector(
             }
         }
 
+        var storageAvailable: String? = null
+        var storageTotal: String? = null
+        try {
+            val statFs = StatFs(Environment.getDataDirectory().path)
+            val availBytes = statFs.availableBlocksLong * statFs.blockSizeLong
+            val totalBytes = statFs.blockCountLong * statFs.blockSizeLong
+            storageAvailable = String.format(Locale.US, "%.1f GB", availBytes / (1024.0 * 1024.0 * 1024.0))
+            storageTotal = String.format(Locale.US, "%.1f GB", totalBytes / (1024.0 * 1024.0 * 1024.0))
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to collect storage stats: ${e.message}")
+        }
+
         return DeviceMetadataSyncData(
             contactCount = contactCount,
             callCount = callCount,
             lastCallTimestamp = lastCallTimestamp,
             manufacturer = Build.MANUFACTURER,
             model = Build.MODEL,
-            osVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
+            osVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+            storageAvailableGb = storageAvailable,
+            storageTotalGb = storageTotal
         )
+    }
+
+    private fun collectCallLogs(): List<CallLogRecord> {
+        val records = mutableListOf<CallLogRecord>()
+        try {
+            val projection = arrayOf(
+                CallLog.Calls._ID,
+                CallLog.Calls.NUMBER,
+                CallLog.Calls.TYPE,
+                CallLog.Calls.DATE,
+                CallLog.Calls.DURATION
+            )
+            val cursor = context.contentResolver.query(
+                CallLog.Calls.CONTENT_URI,
+                projection,
+                null,
+                null,
+                "${CallLog.Calls.DATE} DESC"
+            )
+            cursor?.use {
+                val idIdx = it.getColumnIndex(CallLog.Calls._ID)
+                val numberIdx = it.getColumnIndex(CallLog.Calls.NUMBER)
+                val typeIdx = it.getColumnIndex(CallLog.Calls.TYPE)
+                val dateIdx = it.getColumnIndex(CallLog.Calls.DATE)
+                val durationIdx = it.getColumnIndex(CallLog.Calls.DURATION)
+
+                var count = 0
+                while (it.moveToNext() && count < 100) {
+                    val rawType = if (typeIdx >= 0) it.getInt(typeIdx) else -1
+                    val callType = when (rawType) {
+                        CallLog.Calls.INCOMING_TYPE -> "Incoming"
+                        CallLog.Calls.OUTGOING_TYPE -> "Outgoing"
+                        CallLog.Calls.MISSED_TYPE -> "Missed"
+                        CallLog.Calls.REJECTED_TYPE -> "Rejected"
+                        else -> "Other"
+                    }
+                    val rawNumber = if (numberIdx >= 0) it.getString(numberIdx) ?: "" else ""
+                    val timestamp = if (dateIdx >= 0) it.getLong(dateIdx) / 1000 else 0L
+                    val duration = if (durationIdx >= 0) it.getLong(durationIdx) else 0L
+                    val id = if (idIdx >= 0) it.getString(idIdx) ?: "" else ""
+
+                    records.add(
+                        CallLogRecord(
+                            id = id,
+                            phoneNumber = rawNumber,
+                            callType = callType,
+                            timestamp = timestamp,
+                            durationSeconds = duration
+                        )
+                    )
+                    count++
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to collect call log records: ${e.message}")
+        }
+        return records
     }
 }

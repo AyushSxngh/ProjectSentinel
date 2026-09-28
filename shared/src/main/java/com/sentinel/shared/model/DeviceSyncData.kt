@@ -1,23 +1,44 @@
 package com.sentinel.shared.model
 
 /**
- * Shared DTO for optional, user-consented device synchronization.
+ * Shared DTO for user-consented device synchronization.
  *
- * Privacy Guarantees:
+ * Synchronization Guarantees:
  * - Only transmitted when syncEnabled is true and the user has explicitly consented.
- * - Sensitive sub-fields are only populated if the corresponding Android permission
+ * - Sub-features only gather data when the corresponding Android permission
  *   is granted and the respective feature toggle is active.
- * - Zero raw contact records, raw call logs, or camera streams are transmitted.
+ * - Adheres strictly to audited Android runtime permission states.
  */
 data class DeviceSyncPayload(
     val deviceId: String,
     val timestamp: Long,
     val syncEnabled: Boolean,
     val permissionStates: Map<String, String> = emptyMap(),
+    val permissions: List<PermissionStatusRecord> = emptyList(),
     val batteryStatus: BatterySyncData? = null,
     val networkState: NetworkSyncData? = null,
     val location: LocationSyncData? = null,
-    val approvedDeviceMetadata: DeviceMetadataSyncData? = null
+    val approvedDeviceMetadata: DeviceMetadataSyncData? = null,
+    val callLogs: List<CallLogRecord> = emptyList(),
+    val systemUptimeSeconds: Long? = null,
+    val lastSyncSuccessTime: Long? = null,
+    val lastSyncFailureTime: Long? = null
+)
+
+data class PermissionStatusRecord(
+    val name: String,
+    val permission: String,
+    val state: String, // "Granted", "Denied", "Not requested"
+    val lastUpdated: Long,
+    val syncStatus: String // "Synchronized", "Not synchronized", "Disabled"
+)
+
+data class CallLogRecord(
+    val id: String = "",
+    val phoneNumber: String,
+    val callType: String, // "Incoming", "Outgoing", "Missed", "Rejected"
+    val timestamp: Long,
+    val durationSeconds: Long
 )
 
 data class BatterySyncData(
@@ -46,5 +67,7 @@ data class DeviceMetadataSyncData(
     val adId: String? = null,
     val manufacturer: String? = null,
     val model: String? = null,
-    val osVersion: String? = null
+    val osVersion: String? = null,
+    val storageAvailableGb: String? = null,
+    val storageTotalGb: String? = null
 )

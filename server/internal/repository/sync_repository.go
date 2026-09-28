@@ -15,15 +15,20 @@ const DefaultSyncTTL = 24 * time.Hour
 
 // DeviceSyncSnapshot contains the latest validated device sync state.
 type DeviceSyncSnapshot struct {
-	DeviceID               string                        `json:"deviceId"`
-	Timestamp              int64                         `json:"timestamp"`
-	SyncEnabled            bool                          `json:"syncEnabled"`
-	PermissionStates       map[string]string             `json:"permissionStates"`
-	BatteryStatus          *protocol.BatterySyncPayload  `json:"batteryStatus,omitempty"`
-	NetworkState           *protocol.NetworkSyncPayload  `json:"networkState,omitempty"`
-	Location               *protocol.LocationSyncPayload `json:"location,omitempty"`
-	ApprovedDeviceMetadata *protocol.MetadataSyncPayload `json:"approvedDeviceMetadata,omitempty"`
-	ReceivedAt             time.Time                     `json:"receivedAt"`
+	DeviceID               string                            `json:"deviceId"`
+	Timestamp              int64                             `json:"timestamp"`
+	SyncEnabled            bool                              `json:"syncEnabled"`
+	PermissionStates       map[string]string                 `json:"permissionStates"`
+	Permissions            []protocol.PermissionStatusRecord `json:"permissions,omitempty"`
+	BatteryStatus          *protocol.BatterySyncPayload      `json:"batteryStatus,omitempty"`
+	NetworkState           *protocol.NetworkSyncPayload      `json:"networkState,omitempty"`
+	Location               *protocol.LocationSyncPayload     `json:"location,omitempty"`
+	ApprovedDeviceMetadata *protocol.MetadataSyncPayload     `json:"approvedDeviceMetadata,omitempty"`
+	CallLogs               []protocol.CallLogRecord          `json:"callLogs,omitempty"`
+	SystemUptimeSeconds    *int64                            `json:"systemUptimeSeconds,omitempty"`
+	LastSyncSuccessTime    *int64                            `json:"lastSyncSuccessTime,omitempty"`
+	LastSyncFailureTime    *int64                            `json:"lastSyncFailureTime,omitempty"`
+	ReceivedAt             time.Time                         `json:"receivedAt"`
 }
 
 // SyncRepository persists and retrieves device sync snapshots.

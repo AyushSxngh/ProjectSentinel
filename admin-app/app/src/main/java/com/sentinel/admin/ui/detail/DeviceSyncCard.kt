@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LocationOff
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MarkChatRead
@@ -72,6 +73,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sentinel.admin.domain.model.DeviceSync
+import com.sentinel.shared.model.CallLogRecord
+import com.sentinel.shared.model.PermissionStatusRecord
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -209,6 +212,56 @@ private val PERMISSION_CATALOG = listOf(
         syncUsage = "Package inventory is queried only for diagnostic verification.",
         icon = Icons.Default.Apps,
         isDangerous = false
+    ),
+    PermissionDefinition(
+        key = "internet",
+        title = "Internet Access",
+        technicalName = "android.permission.INTERNET",
+        category = "Network & Web",
+        purpose = "Allows communication with ProjectSentinel server backend.",
+        syncUsage = "Enables encrypted WebSocket and HTTPS transport.",
+        icon = Icons.Default.Wifi,
+        isDangerous = false
+    ),
+    PermissionDefinition(
+        key = "networkState",
+        title = "Access Network State",
+        technicalName = "android.permission.ACCESS_NETWORK_STATE",
+        category = "Network & Web",
+        purpose = "Detects network connectivity state changes (Wi-Fi vs Cellular).",
+        syncUsage = "Monitors real-time connection status.",
+        icon = Icons.Default.Wifi,
+        isDangerous = false
+    ),
+    PermissionDefinition(
+        key = "wifiState",
+        title = "Access Wi-Fi State",
+        technicalName = "android.permission.ACCESS_WIFI_STATE",
+        category = "Network & Web",
+        purpose = "Allows inspecting connected Wi-Fi state and link speed.",
+        syncUsage = "Included in network telemetry when active.",
+        icon = Icons.Default.Wifi,
+        isDangerous = false
+    ),
+    PermissionDefinition(
+        key = "wakeLock",
+        title = "Wake Lock",
+        technicalName = "android.permission.WAKE_LOCK",
+        category = "System & Security",
+        purpose = "Prevents CPU from sleeping during active synchronization tasks.",
+        syncUsage = "Keeps telemetry transport active during background sync cycles.",
+        icon = Icons.Default.Lock,
+        isDangerous = false
+    ),
+    PermissionDefinition(
+        key = "adId",
+        title = "Advertising ID Permission",
+        technicalName = "com.google.android.gms.permission.AD_ID",
+        category = "Telemetry & Data",
+        purpose = "Allows querying device advertising identifier if enabled.",
+        syncUsage = "Synchronized solely for optional diagnostic profiling. Never used as device identity.",
+        icon = Icons.Default.Info,
+        isDangerous = false
     )
 )
 
@@ -249,20 +302,20 @@ fun DeviceSyncCard(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // 2. Full Audited Permissions Center
-                PermissionsAuditSection(permissionStates = sync.permissionStates)
+                PermissionsAuditSection(sync = sync)
 
                 // 3. User Privacy Notice if Sync with Admin is paused
                 if (!sync.syncEnabled) {
                     Spacer(modifier = Modifier.height(16.dp))
                     SyncPausedPrivacyBanner()
-                } else {
-                    // 4. Complete Telemetry Details (Every single data point)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    TelemetryDetailsSection(sync = sync)
                 }
+
+                // 4. Complete Telemetry Details (Every single data point)
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TelemetryDetailsSection(sync = sync)
             }
         }
     }
@@ -435,10 +488,13 @@ private fun SyncMetaBanner(sync: DeviceSync) {
 
 @Composable
 private fun PermissionsAuditSection(
-    permissionStates: Map<String, String>
+    sync: DeviceSync
 ) {
+    val permissionStates = sync.permissionStates
+    val permissionRecords = sync.permissions
+
     // Merge catalog with any unknown dynamic keys from host
-    val allDefinitions = remember(permissionStates) {
+    val allDefinitions = remember(permissionStates, permissionRecords) {
         val catalogMap = PERMISSION_CATALOG.associateBy { it.key }.toMutableMap()
         permissionStates.forEach { (key, _) ->
             if (!catalogMap.containsKey(key)) {
@@ -449,6 +505,23 @@ private fun PermissionsAuditSection(
                     category = "Additional",
                     purpose = "Audited host system permission.",
                     syncUsage = "Tracked in device sync payload.",
+                    icon = Icons.Default.Security
+                )
+            }
+        }
+        permissionRecords.forEach { record ->
+            val existing = catalogMap.values.find {
+                it.technicalName.equals(record.permission, ignoreCase = true) ||
+                it.title.equals(record.name, ignoreCase = true)
+            }
+            if (existing == null) {
+                catalogMap[record.permission] = PermissionDefinition(
+                    key = record.permission,
+                    title = record.name,
+                    technicalName = record.permission,
+                    category = "Audited",
+                    purpose = "Audited host system permission state.",
+                    syncUsage = "Reported directly by host permission manager.",
                     icon = Icons.Default.Security
                 )
             }
@@ -468,8 +541,13 @@ private fun PermissionsAuditSection(
     }
 
     val totalTracked = allDefinitions.size
-    val grantedCount = allDefinitions.count {
-        permissionStates[it.key]?.lowercase() == "granted"
+    val grantedCount = allDefinitions.count { def ->
+        val record = permissionRecords.find {
+            it.permission.equals(def.technicalName, ignoreCase = true) ||
+            it.name.equals(def.title, ignoreCase = true)
+        }
+        record?.state?.equals("Granted", ignoreCase = true)
+            ?: (permissionStates[def.key]?.lowercase() == "granted")
     }
     val deniedCount = totalTracked - grantedCount
     val compliancePct = if (totalTracked > 0) (grantedCount * 100) / totalTracked else 0
@@ -561,7 +639,7 @@ private fun PermissionsAuditSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            categories.take(4).forEach { cat ->
+            categories.take(5).forEach { cat ->
                 val isSelected = selectedCategory == cat
                 Surface(
                     shape = RoundedCornerShape(8.dp),
@@ -583,8 +661,13 @@ private fun PermissionsAuditSection(
 
         // Render each permission card with full details
         filteredList.forEach { def ->
-            val isGranted = permissionStates[def.key]?.lowercase() == "granted"
-            DetailedPermissionCard(def = def, isGranted = isGranted)
+            val record = permissionRecords.find {
+                it.permission.equals(def.technicalName, ignoreCase = true) ||
+                it.name.equals(def.title, ignoreCase = true)
+            }
+            val isGranted = record?.state?.equals("Granted", ignoreCase = true)
+                ?: (permissionStates[def.key]?.lowercase() == "granted")
+            DetailedPermissionCard(def = def, record = record, isGranted = isGranted, sync = sync)
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
@@ -593,20 +676,54 @@ private fun PermissionsAuditSection(
 @Composable
 private fun DetailedPermissionCard(
     def: PermissionDefinition,
-    isGranted: Boolean
+    record: PermissionStatusRecord?,
+    isGranted: Boolean,
+    sync: DeviceSync
 ) {
+    val state = record?.state ?: if (isGranted) "Granted" else "Denied"
+    val syncStatus = record?.syncStatus ?: if (isGranted && sync.syncEnabled) "Synchronized" else if (!sync.syncEnabled) "Disabled" else "Not synchronized"
+
+    val isPermGranted = state.equals("Granted", ignoreCase = true)
+    val isPermDenied = state.equals("Denied", ignoreCase = true)
+
+    val stateColor = when {
+        isPermGranted -> Color(0xFF2E7D32)
+        isPermDenied -> Color(0xFFC62828)
+        else -> Color(0xFFEF6C00)
+    }
+    val stateBg = when {
+        isPermGranted -> Color(0xFFE8F5E9)
+        isPermDenied -> Color(0xFFFFEBEE)
+        else -> Color(0xFFFFF3E0)
+    }
+
+    val syncColor = when (syncStatus.lowercase()) {
+        "synchronized" -> Color(0xFF2E7D32)
+        "disabled" -> Color(0xFFE65100)
+        else -> Color(0xFF757575)
+    }
+    val syncBg = when (syncStatus.lowercase()) {
+        "synchronized" -> Color(0xFFE8F5E9)
+        "disabled" -> Color(0xFFFFF3E0)
+        else -> Color(0xFFF5F5F5)
+    }
+
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (isGranted) Color(0xFFC8E6C9) else Color(0xFFFFCDD2)
+            when {
+                isPermGranted -> Color(0xFFC8E6C9)
+                isPermDenied -> Color(0xFFFFCDD2)
+                else -> Color(0xFFFFE082)
+            }
         ),
         shadowElevation = 0.5.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // Header: Icon + Title + Status Badge
+            // Header: Icon + Title + Status Badges
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -620,15 +737,13 @@ private fun DetailedPermissionCard(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(
-                                if (isGranted) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
-                            ),
+                            .background(stateBg),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = def.icon,
                             contentDescription = null,
-                            tint = if (isGranted) Color(0xFF2E7D32) else Color(0xFFC62828),
+                            tint = stateColor,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -654,27 +769,50 @@ private fun DetailedPermissionCard(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Status Badge
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = if (isGranted) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                Column(horizontalAlignment = Alignment.End) {
+                    // Runtime State Badge
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = stateBg
                     ) {
-                        Icon(
-                            imageVector = if (isGranted) Icons.Default.CheckCircle else Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = if (isGranted) Color(0xFF2E7D32) else Color(0xFFC62828),
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = when {
+                                    isPermGranted -> Icons.Default.CheckCircle
+                                    isPermDenied -> Icons.Default.Close
+                                    else -> Icons.Default.Info
+                                },
+                                contentDescription = null,
+                                tint = stateColor,
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = state.uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = stateColor
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(3.dp))
+
+                    // Synchronization Status Badge
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = syncBg
+                    ) {
                         Text(
-                            text = if (isGranted) "GRANTED" else "DENIED",
+                            text = "Sync: $syncStatus",
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isGranted) Color(0xFF2E7D32) else Color(0xFFC62828)
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = syncColor,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
                 }
@@ -705,6 +843,45 @@ private fun DetailedPermissionCard(
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Distinguish permission granted from contact data synchronized
+            if (def.key == "contacts" && isPermGranted) {
+                Spacer(modifier = Modifier.height(4.dp))
+                val contactCount = sync.approvedDeviceMetadata?.contactCount
+                Text(
+                    text = if (contactCount != null) {
+                        "✓ Contact data synchronized: $contactCount contacts"
+                    } else {
+                        "Notice: Permission granted, but contacts summary data is not synchronized."
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp,
+                    color = if (contactCount != null) Color(0xFF2E7D32) else Color(0xFFEF6C00)
+                )
+            }
+
+            // Camera explicit note
+            if (def.key == "camera") {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Camera snapshots operate only upon explicit administrator command. Zero continuous streaming or background capture.",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (record != null && record.lastUpdated > 0) {
+                Spacer(modifier = Modifier.height(2.dp))
+                val updateDate = Date(record.lastUpdated)
+                val formattedUpdate = SimpleDateFormat("MMM d, HH:mm:ss", Locale.getDefault()).format(updateDate)
+                Text(
+                    text = "Last audit update: $formattedUpdate",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 9.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
         }
@@ -926,22 +1103,36 @@ private fun TelemetryDetailsSection(sync: DeviceSync) {
             Spacer(modifier = Modifier.height(10.dp))
         }
 
-        // 3. Approved Telemetry Metrics
+        // 3. Approved Diagnostics, Hardware & System Metadata
         sync.approvedDeviceMetadata?.let { meta ->
             TelemetrySubCard(
-                title = "Approved Diagnostics & Metadata",
+                title = "Approved Diagnostics & System Metadata",
                 icon = Icons.Default.Info
             ) {
+                // Storage metrics
+                if (meta.storageAvailableGb != null && meta.storageTotalGb != null) {
+                    TelemetryRow("Internal Storage", "${meta.storageAvailableGb} GB free of ${meta.storageTotalGb} GB")
+                } else if (meta.storageAvailableGb != null) {
+                    TelemetryRow("Internal Storage", "${meta.storageAvailableGb} GB available")
+                }
+
+                // System Uptime
+                sync.systemUptimeSeconds?.let { uptime ->
+                    TelemetryRow("System Uptime", formatUptime(uptime))
+                }
+
                 meta.contactCount?.let {
-                    TelemetryRow("Total Address Book Contacts", "$it (count only, raw data safeguarded)")
+                    TelemetryRow("Address Book Contacts", "$it (count only, raw data safeguarded)")
                 }
                 meta.callCount?.let {
-                    TelemetryRow("Total Calls Logged", "$it (count only, zero numbers stored)")
+                    TelemetryRow("Total Calls Logged", "$it (summary count)")
                 }
                 meta.lastCallTimestamp?.let {
-                    val callDate = Date(it * 1000)
-                    val formattedCall = SimpleDateFormat("MMM d, yyyy HH:mm:ss", Locale.getDefault()).format(callDate)
-                    TelemetryRow("Last Call Activity", formattedCall)
+                    if (it > 0) {
+                        val callDate = Date(it * 1000)
+                        val formattedCall = SimpleDateFormat("MMM d, yyyy HH:mm:ss", Locale.getDefault()).format(callDate)
+                        TelemetryRow("Last Call Activity", formattedCall)
+                    }
                 }
                 meta.osVersion?.let {
                     TelemetryRow("Operating System", it)
@@ -953,7 +1144,17 @@ private fun TelemetryDetailsSection(sync: DeviceSync) {
                     TelemetryRow("Device Model", it)
                 }
                 meta.adId?.let {
-                    TelemetryRow("Advertising Identifier", it)
+                    TelemetryRow("Advertising Identifier (AD_ID)", it)
+                }
+                sync.lastSyncSuccessTime?.let {
+                    if (it > 0) {
+                        TelemetryRow("Last Sync Success", formatSyncTime(it))
+                    }
+                }
+                sync.lastSyncFailureTime?.let {
+                    if (it > 0) {
+                        TelemetryRow("Last Sync Failure", formatSyncTime(it))
+                    }
                 }
             }
 
@@ -961,7 +1162,11 @@ private fun TelemetryDetailsSection(sync: DeviceSync) {
         }
 
         // 4. GPS Location Coordinates (from sync)
-        sync.location?.let { loc ->
+        val locPerm = sync.permissions.find { it.permission == "android.permission.ACCESS_COARSE_LOCATION" }
+        val isLocGranted = locPerm?.state == "granted" || sync.permissionStates["coarseLocation"] == "granted"
+        val loc = sync.location
+
+        if (loc != null) {
             TelemetrySubCard(
                 title = "GPS Coordinates (Sync)",
                 icon = Icons.Default.LocationOn
@@ -975,8 +1180,256 @@ private fun TelemetryDetailsSection(sync: DeviceSync) {
                     TelemetryRow("Recorded At", formattedLoc)
                 }
             }
+        } else {
+            TelemetrySubCard(
+                title = "GPS Location (Sync)",
+                icon = Icons.Default.LocationOff
+            ) {
+                TelemetryRow("Location Status", "Location unavailable")
+                val reason = when {
+                    !isLocGranted -> "ACCESS_COARSE_LOCATION permission is Denied or Not Requested."
+                    !sync.syncEnabled -> "Sync with Admin is paused by host user."
+                    else -> "No GPS/network location fix recorded by host device."
+                }
+                Text(
+                    text = reason,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // 5. Call Logs Telemetry Section
+        CallLogTelemetrySubCard(sync = sync)
+    }
+}
+
+@Composable
+private fun CallLogTelemetrySubCard(sync: DeviceSync) {
+    val callLogPerm = sync.permissions.find { it.permission == "android.permission.READ_CALL_LOG" }
+    val isCallLogGranted = callLogPerm?.state == "granted" || sync.permissionStates["callLog"] == "granted"
+
+    val totalCalls = sync.callLogs.size
+    val incomingCalls = sync.callLogs.count { it.callType.equals("Incoming", ignoreCase = true) }
+    val outgoingCalls = sync.callLogs.count { it.callType.equals("Outgoing", ignoreCase = true) }
+    val missedCalls = sync.callLogs.count { it.callType.equals("Missed", ignoreCase = true) }
+    val rejectedCalls = sync.callLogs.count { it.callType.equals("Rejected", ignoreCase = true) }
+
+    TelemetrySubCard(
+        title = "Call Logs Telemetry",
+        icon = Icons.Default.Call
+    ) {
+        if (!isCallLogGranted) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Color(0xFFFFEBEE),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color(0xFFC62828),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "READ_CALL_LOG permission is Denied. Telemetry collection blocked by Android runtime policy.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFC62828)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        if (!sync.syncEnabled && sync.callLogs.isNotEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Color(0xFFFFF3E0),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Live sync is paused by host user. Displaying previously retained call records.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFFE65100),
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Summary Counts Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            MetricPill(
+                label = "Total",
+                value = "$totalCalls",
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            MetricPill(
+                label = "Incoming",
+                value = "$incomingCalls",
+                containerColor = Color(0xFFE8F5E9),
+                contentColor = Color(0xFF2E7D32),
+                modifier = Modifier.weight(1f)
+            )
+            MetricPill(
+                label = "Outgoing",
+                value = "$outgoingCalls",
+                containerColor = Color(0xFFE3F2FD),
+                contentColor = Color(0xFF1565C0),
+                modifier = Modifier.weight(1f)
+            )
+            MetricPill(
+                label = "Missed",
+                value = "$missedCalls",
+                containerColor = Color(0xFFFFEBEE),
+                contentColor = Color(0xFFC62828),
+                modifier = Modifier.weight(1f)
+            )
+            MetricPill(
+                label = "Rejected",
+                value = "$rejectedCalls",
+                containerColor = Color(0xFFFFF3E0),
+                contentColor = Color(0xFFEF6C00),
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Synchronized Call Records List
+        if (sync.callLogs.isEmpty()) {
+            Text(
+                text = if (!isCallLogGranted) {
+                    "No call records collected because READ_CALL_LOG permission is not granted on host device."
+                } else {
+                    "No synchronized call records available."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            Text(
+                text = "Synchronized Records (${sync.callLogs.size}):",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+
+            sync.callLogs.forEach { record ->
+                CallRecordRow(record = record)
+                Spacer(modifier = Modifier.height(4.dp))
+            }
         }
     }
+}
+
+@Composable
+private fun CallRecordRow(record: CallLogRecord) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = record.phoneNumber.ifBlank { "Private / Unknown" },
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                val callDate = if (record.timestamp > 1000000000000L) Date(record.timestamp) else Date(record.timestamp * 1000)
+                val formattedDate = SimpleDateFormat("MMM d, yyyy HH:mm:ss", Locale.getDefault()).format(callDate)
+                Text(
+                    text = formattedDate,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Column(horizontalAlignment = Alignment.End) {
+                val (typeBg, typeColor) = when (record.callType.lowercase()) {
+                    "incoming" -> Color(0xFFE8F5E9) to Color(0xFF2E7D32)
+                    "outgoing" -> Color(0xFFE3F2FD) to Color(0xFF1565C0)
+                    "missed" -> Color(0xFFFFEBEE) to Color(0xFFC62828)
+                    "rejected" -> Color(0xFFFFF3E0) to Color(0xFFEF6C00)
+                    else -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = typeBg
+                ) {
+                    Text(
+                        text = record.callType.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = typeColor,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = formatDuration(record.durationSeconds),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+private fun formatUptime(uptimeSeconds: Long?): String {
+    if (uptimeSeconds == null || uptimeSeconds <= 0) return "Unknown"
+    val days = uptimeSeconds / 86400
+    val hours = (uptimeSeconds % 86400) / 3600
+    val mins = (uptimeSeconds % 3600) / 60
+    val secs = uptimeSeconds % 60
+    return when {
+        days > 0 -> "${days}d ${hours}h ${mins}m"
+        hours > 0 -> "${hours}h ${mins}m ${secs}s"
+        else -> "${mins}m ${secs}s"
+    }
+}
+
+private fun formatDuration(seconds: Long): String {
+    if (seconds <= 0) return "0s"
+    val mins = seconds / 60
+    val secs = seconds % 60
+    return if (mins > 0) "${mins}m ${secs}s" else "${secs}s"
+}
+
+private fun formatSyncTime(timestamp: Long): String {
+    if (timestamp <= 0) return "Unknown"
+    val date = if (timestamp > 1000000000000L) Date(timestamp) else Date(timestamp * 1000)
+    return SimpleDateFormat("MMM d, yyyy HH:mm:ss", Locale.getDefault()).format(date)
 }
 
 @Composable
