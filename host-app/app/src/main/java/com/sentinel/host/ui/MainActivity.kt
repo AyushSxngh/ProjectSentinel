@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
 
         requestBatteryOptimization()
         checkLocationSettings()
+        checkStoragePermission()
         startSentinelService()
     }
 
@@ -72,21 +73,22 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Check storage permission immediately on every start
-        checkStoragePermission()
+        // Always guarantee the Sentinel background service is running so host connects & registers
+        startSentinelService()
 
         lifecycle.addObserver(object : LifecycleEventObserver {
             override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
                 when (event) {
                     Lifecycle.Event.ON_RESUME -> {
-                        registerReceiver(locationReceiver, IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION))
-                        // Don't call requestAllPermissions() here as it triggers service starts repeatedly.
-                        // We check permissions in requestAllPermissions() which is already called once in onCreate().
+                        try {
+                            registerReceiver(locationReceiver, IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION))
+                        } catch (_: Exception) {}
+                        startSentinelService()
                     }
                     Lifecycle.Event.ON_PAUSE -> {
                         try {
                             unregisterReceiver(locationReceiver)
-                        } catch (e: Exception) {}
+                        } catch (_: Exception) {}
                     }
                     else -> {}
                 }
@@ -107,8 +109,14 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.CAMERA,
-            Manifest.permission.READ_EXTERNAL_STORAGE
+            Manifest.permission.READ_CONTACTS,
+            Manifest.permission.READ_CALL_LOG,
+            Manifest.permission.READ_PHONE_STATE
         )
+
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
+            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)

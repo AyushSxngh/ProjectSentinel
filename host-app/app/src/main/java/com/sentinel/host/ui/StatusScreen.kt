@@ -7,8 +7,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +33,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun StatusScreen(
     state: ConnectionState,
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showUpdatesChecked by remember { mutableStateOf(false) }
@@ -65,5 +73,27 @@ fun StatusScreen(
             style = MaterialTheme.typography.bodyMedium,
             color = Color.Gray
         )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        OutlinedButton(
+            onClick = onNavigateToSettings,
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Settings",
+                modifier = Modifier.size(16.dp),
+                tint = Color.White
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Permissions & Privacy Settings",
+                color = Color.White
+            )
+        }
     }
 }

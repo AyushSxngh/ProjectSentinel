@@ -43,6 +43,7 @@ fun SentinelHostApp() {
                     else -> {
                         StatusScreen(
                             state = connectionState,
+                            onNavigateToSettings = { currentScreen = "settings" },
                             modifier = Modifier.padding(innerPadding)
                         )
                     }

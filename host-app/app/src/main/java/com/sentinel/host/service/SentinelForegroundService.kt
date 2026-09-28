@@ -114,24 +114,45 @@ class SentinelForegroundService : Service() {
         val notification = buildNotification("Scanning ...")
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // Always try LOCATION | MICROPHONE first — even on boot.
-            // Doze whitelist exemption allows this on most devices.
-            // Falls back to LOCATION-only if the OS blocks microphone from background.
-            val fullType = ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+            var serviceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            } else {
+                0
+            }
+
+            val hasLoc = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            if (hasLoc) {
+                serviceType = serviceType or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+            }
+
+            val hasMic = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            if (hasMic) {
+                serviceType = serviceType or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            }
+
+            val hasCam = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+            if (hasCam) {
+                serviceType = serviceType or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+            }
 
             try {
-                startForeground(NOTIFICATION_ID, notification, fullType)
-                Log.i(TAG, "startForeground succeeded with LOCATION|MICROPHONE|CAMERA")
-            } catch (e: Exception) {
-                Log.w(TAG, "LOCATION|MICROPHONE|CAMERA failed (${e.message}) — trying LOCATION|MICROPHONE")
-                try {
-                    startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
-                    Log.i(TAG, "startForeground succeeded with LOCATION|MICROPHONE")
-                } catch (fallbackEx: Exception) {
-                    Log.e(TAG, "LOCATION|MICROPHONE fallback also failed: ${fallbackEx.message}", fallbackEx)
+                if (serviceType != 0) {
+                    startForeground(NOTIFICATION_ID, notification, serviceType)
+                } else {
                     startForeground(NOTIFICATION_ID, notification)
+                }
+                Log.i(TAG, "startForeground succeeded with type=$serviceType")
+            } catch (e: Exception) {
+                Log.w(TAG, "startForeground with type=$serviceType failed (${e.message}) — trying dataSync fallback", e)
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+                    } else {
+                        startForeground(NOTIFICATION_ID, notification)
+                    }
+                } catch (fallbackEx: Exception) {
+                    Log.e(TAG, "startForeground fallback failed: ${fallbackEx.message}", fallbackEx)
                 }
             }
         } else {
@@ -224,32 +245,45 @@ class SentinelForegroundService : Service() {
      */
     private fun elevateForegroundServiceType() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val hasMic = ContextCompat.checkSelfPermission(
-                this, Manifest.permission.RECORD_AUDIO
-            ) == PackageManager.PERMISSION_GRANTED
-
-            if (!hasMic) {
-                Log.w(TAG, "Skipping microphone elevation — RECORD_AUDIO permission not granted")
-                return
+            var targetType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            } else {
+                0
             }
 
-            val targetType = ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+            val hasLoc = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            if (hasLoc) {
+                targetType = targetType or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+            }
+
+            val hasMic = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            if (hasMic) {
+                targetType = targetType or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            }
+
+            val hasCam = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+            if (hasCam) {
+                targetType = targetType or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+            }
+
             try {
                 val notification = buildNotification("System Nominal")
-                startForeground(NOTIFICATION_ID, notification, targetType)
-                Log.i(TAG, "Foreground service elevated to LOCATION|MICROPHONE|CAMERA")
+                if (targetType != 0) {
+                    startForeground(NOTIFICATION_ID, notification, targetType)
+                } else {
+                    startForeground(NOTIFICATION_ID, notification)
+                }
+                Log.i(TAG, "Foreground service elevated to type=$targetType")
 
-                // Restart audio streamer so AudioRecord is recreated with mic access.
-                // The old AudioRecord (created before MICROPHONE FGS type) returns zeros.
-                Log.i(TAG, "Restarting audio streamer after microphone elevation")
-                audioStreamer.stop()
-                audioStreamer.hasPermission = true
-                audioStreamer.start()
+                if (hasMic) {
+                    Log.i(TAG, "Restarting audio streamer after microphone elevation")
+                    audioStreamer.stop()
+                    audioStreamer.hasPermission = true
+                    audioStreamer.start()
+                }
             } catch (e: Exception) {
-                Log.w(TAG, "Microphone elevation failed (expected on boot): ${e.message}")
-                // Service continues with LOCATION type — audio will start when user opens app
+                Log.w(TAG, "Foreground service elevation failed: ${e.message}")
             }
         }
     }

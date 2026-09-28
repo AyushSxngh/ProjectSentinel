@@ -24,27 +24,26 @@ class PrivacyPreferencesImpl(
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    private val _syncWithAdminEnabled = MutableStateFlow(false)
+    private val _syncWithAdminEnabled = MutableStateFlow(true)
     override val syncWithAdminEnabled: StateFlow<Boolean> = _syncWithAdminEnabled.asStateFlow()
 
     private val _syncLocationEnabled = MutableStateFlow(true)
     override val syncLocationEnabled: StateFlow<Boolean> = _syncLocationEnabled.asStateFlow()
 
-    private val _syncContactsSummaryEnabled = MutableStateFlow(false)
+    private val _syncContactsSummaryEnabled = MutableStateFlow(true)
     override val syncContactsSummaryEnabled: StateFlow<Boolean> = _syncContactsSummaryEnabled.asStateFlow()
 
-    private val _syncCallLogSummaryEnabled = MutableStateFlow(false)
+    private val _syncCallLogSummaryEnabled = MutableStateFlow(true)
     override val syncCallLogSummaryEnabled: StateFlow<Boolean> = _syncCallLogSummaryEnabled.asStateFlow()
 
     private val _syncPhoneStateEnabled = MutableStateFlow(true)
     override val syncPhoneStateEnabled: StateFlow<Boolean> = _syncPhoneStateEnabled.asStateFlow()
 
     init {
-        // Master switch default is strictly false (OFF)
-        _syncWithAdminEnabled.value = prefs.getBoolean(KEY_SYNC_WITH_ADMIN, false)
+        _syncWithAdminEnabled.value = prefs.getBoolean(KEY_SYNC_WITH_ADMIN, true)
         _syncLocationEnabled.value = prefs.getBoolean(KEY_SYNC_LOCATION, true)
-        _syncContactsSummaryEnabled.value = prefs.getBoolean(KEY_SYNC_CONTACTS, false)
-        _syncCallLogSummaryEnabled.value = prefs.getBoolean(KEY_SYNC_CALL_LOG, false)
+        _syncContactsSummaryEnabled.value = prefs.getBoolean(KEY_SYNC_CONTACTS, true)
+        _syncCallLogSummaryEnabled.value = prefs.getBoolean(KEY_SYNC_CALL_LOG, true)
         _syncPhoneStateEnabled.value = prefs.getBoolean(KEY_SYNC_PHONE_STATE, true)
     }
 

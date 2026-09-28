@@ -40,10 +40,10 @@ class SessionManagerImpl(context: Context) : SessionManager {
 
     override fun getToken(): String? {
         val token = prefs.getString(KEY_TOKEN, null)
-        if (token != null && token.contains("l_yJzhLSY0Kuhudn6-5W81pyv77NBZkDsZVdXgWKeSA")) {
-            val validToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VfaWQiOiJIT1NULTAwMSIsImlzcyI6InByb2plY3Qtc2VudGluZWwiLCJzdWIiOiJIT1NULTAwMSIsImV4cCI6MTgyMjEzMDQ0MiwiaWF0IjoxNzkwNTk0NDQxfQ.C8meqsSqMGTjSB845ctkZdTuOqTy15SkPh7UA3h0MM0"
-            saveToken(validToken)
-            return validToken
+        val defaultToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VfaWQiOiJIT1NULTAwMSIsImlzcyI6InByb2plY3Qtc2VudGluZWwiLCJzdWIiOiJIT1NULTAwMSIsImV4cCI6MTgyMjEzMDQ0MiwiaWF0IjoxNzkwNTk0NDQxfQ.C8meqsSqMGTjSB845ctkZdTuOqTy15SkPh7UA3h0MM0"
+        if (token.isNullOrBlank() || token.contains("l_yJzhLSY0Kuhudn6-5W81pyv77NBZkDsZVdXgWKeSA")) {
+            saveToken(defaultToken)
+            return defaultToken
         }
         return token
     }
@@ -58,10 +58,10 @@ class SessionManagerImpl(context: Context) : SessionManager {
 
     override fun getServerUrl(): String? {
         val url = prefs.getString(KEY_SERVER_URL, null)
-        if (url != null && url.contains("project-sentinel-rwt4")) {
-            val updatedUrl = "wss://projectsentinel-2.onrender.com/ws"
-            saveServerUrl(updatedUrl)
-            return updatedUrl
+        val defaultUrl = "wss://projectsentinel-2.onrender.com/ws"
+        if (url.isNullOrBlank() || url.contains("project-sentinel-rwt4") || url.contains("example.com")) {
+            saveServerUrl(defaultUrl)
+            return defaultUrl
         }
         return url
     }
